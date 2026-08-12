@@ -14,9 +14,9 @@ class Incident(db.Model):
     # User's original priority description (free text)
     reported_priority_text = db.Column(db.String(255), nullable=True)
 
-    # Impact and urgency chosen by support team
-    impact = db.Column(db.String(20), nullable=False)
-    urgency = db.Column(db.String(20), nullable=False)
+    # Impact and urgency – NULLABLE until triage (support team sets these)
+    impact = db.Column(db.String(20), nullable=True)  # <-- CHANGED: nullable=True
+    urgency = db.Column(db.String(20), nullable=True)  # <-- CHANGED: nullable=True
 
     # Status (string, validated at service layer)
     status = db.Column(db.String(20), nullable=False, default=IncidentStatus.NEW.value, index=True)
@@ -47,14 +47,14 @@ class Incident(db.Model):
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False, index=True)
     assigned_priority_id = db.Column(db.Integer, db.ForeignKey('priorities.id'), nullable=True)
 
-    # Check constraints (defense-in-depth)
+    # Check constraints (defense-in-depth) – UPDATED to allow NULL
     __table_args__ = (
         CheckConstraint(
-            f"impact IN ('{ImpactLevel.LOW.value}', '{ImpactLevel.MEDIUM.value}', '{ImpactLevel.HIGH.value}')",
+            f"impact IS NULL OR impact IN ('{ImpactLevel.LOW.value}', '{ImpactLevel.MEDIUM.value}', '{ImpactLevel.HIGH.value}')",
             name='valid_impact'
         ),
         CheckConstraint(
-            f"urgency IN ('{UrgencyLevel.LOW.value}', '{UrgencyLevel.MEDIUM.value}', '{UrgencyLevel.HIGH.value}')",
+            f"urgency IS NULL OR urgency IN ('{UrgencyLevel.LOW.value}', '{UrgencyLevel.MEDIUM.value}', '{UrgencyLevel.HIGH.value}')",
             name='valid_urgency'
         ),
         CheckConstraint(
