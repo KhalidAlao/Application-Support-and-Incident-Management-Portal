@@ -8,4 +8,4 @@ jwt = JWTManager()
 swagger = Swagger()
 migrate = Migrate()
 
-from backend.app.models import User, Priority, Application
+from backend.app.models import User, Priority, Application, Incident
