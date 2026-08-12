@@ -11,10 +11,10 @@ class Incident(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
 
-    # User's original priority description (free text – increased to 255)
+    # User's original priority description (free text)
     reported_priority_text = db.Column(db.String(255), nullable=True)
 
-    # Impact and urgency chosen by support team (validated by CheckConstraint)
+    # Impact and urgency chosen by support team
     impact = db.Column(db.String(20), nullable=False)
     urgency = db.Column(db.String(20), nullable=False)
 
@@ -32,7 +32,7 @@ class Incident(db.Model):
     # Resolution tracking
     resolution_code = db.Column(db.String(30), nullable=True)
 
-    # Timestamps with indexes for reporting
+    # Timestamps
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     updated_at = db.Column(
         db.DateTime(timezone=True),
@@ -41,15 +41,13 @@ class Incident(db.Model):
         nullable=False
     )
 
-    # Foreign Keys – assignee is nullable (ticket starts unassigned)
+    # Foreign Keys
     reporter_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     assignee_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
     application_id = db.Column(db.Integer, db.ForeignKey('applications.id'), nullable=False, index=True)
-
-    # Priority is nullable – not assigned until triage
     assigned_priority_id = db.Column(db.Integer, db.ForeignKey('priorities.id'), nullable=True)
 
-    # Database-level check constraints (defense-in-depth)
+    # Check constraints (defense-in-depth)
     __table_args__ = (
         CheckConstraint(
             f"impact IN ('{ImpactLevel.LOW.value}', '{ImpactLevel.MEDIUM.value}', '{ImpactLevel.HIGH.value}')",
@@ -81,17 +79,17 @@ class Incident(db.Model):
         ),
     )
 
-    # Relationships – foreign_keys disambiguates the two User FKs
+    # Relationships
     reporter = db.relationship('User', foreign_keys=[reporter_id], backref='incidents_reported')
     assignee = db.relationship('User', foreign_keys=[assignee_id], backref='incidents_assigned')
     priority = db.relationship('Priority', foreign_keys=[assigned_priority_id], backref='incidents')
     application = db.relationship('Application', foreign_keys=[application_id], backref='incidents')
 
-    # Audit logs will be added in Task 3.4
-    # audit_logs = db.relationship('AuditLog', backref='incident', lazy=True)
+    # Audit logs – NO cascade (audit trail must survive incident deletion)
+    audit_logs = db.relationship('AuditLog', backref='incident', lazy=True)
 
-    # Knowledge links will be added in Task 3.4
-    # knowledge_links = db.relationship('IncidentKnowledge', backref='incident', lazy=True)
+    # Knowledge links – cascade OK (junction table cleanup)
+    knowledge_links = db.relationship('IncidentKnowledge', backref='incident', lazy=True, cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Incident {self.id}: {self.title[:30]}>'

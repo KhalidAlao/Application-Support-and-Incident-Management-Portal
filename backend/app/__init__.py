@@ -26,6 +26,9 @@ def create_app(config_class=None):
     CORS(app)
     swagger.init_app(app)
     migrate.init_app(app, db) 
+    
+    with app.app_context():
+        from backend.app import models  # noqa: F401 — triggers model registration with db.metadata
 
     # Register blueprints
     from backend.app.routes.health import health_bp
