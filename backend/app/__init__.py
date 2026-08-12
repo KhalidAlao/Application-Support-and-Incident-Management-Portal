@@ -1,6 +1,8 @@
 from flask import Flask
 from flask_cors import CORS
-import os
+from flask_migrate import Migrate
+from backend.extensions import db, jwt, swagger, migrate
+
 
 # absolute imports using the 'backend' package root
 from backend.config import DevelopmentConfig, TestingConfig, ProductionConfig
@@ -23,6 +25,7 @@ def create_app(config_class=None):
     jwt.init_app(app)
     CORS(app)
     swagger.init_app(app)
+    migrate.init_app(app, db) 
 
     # Register blueprints
     from backend.app.routes.health import health_bp
