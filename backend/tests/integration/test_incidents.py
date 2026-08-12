@@ -1,0 +1,305 @@
+import pytest
+from datetime import datetime, timedelta
+from backend.app.models import Incident, Priority, Application, User
+from backend.app.utils import utc_now
+from backend.extensions import db
+from backend.tests.conftest import auth_headers, auth_headers_for_user_id
+
+
+def test_create_incident_success(client, reporter_user_id):
+    """Test creating an incident as a reporter."""
+    user = db.session.get(User, reporter_user_id)
+
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(
+            name='Test App',
+            description='Test application',
+            criticality='medium',
+            owner_id=user.id
+        )
+        db.session.add(app_obj)
+        db.session.commit()
+
+    response = client.post(
+        '/api/incidents',
+        json={
+            'title': 'Test Incident',
+            'description': 'This is a test incident',
+            'reported_priority_text': 'This is urgent!',
+            'application_id': app_obj.id
+        },
+        headers=auth_headers(user)
+    )
+
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data['title'] == 'Test Incident'
+    assert data['reporter_id'] == user.id
+    assert data['status'] == 'new'
+    assert data['impact'] is None
+    assert data['urgency'] is None
+    assert data['assigned_priority_id'] is None
+
+
+def test_create_incident_no_auth(client):
+    """Test creating an incident without authentication."""
+    response = client.post('/api/incidents', json={
+        'title': 'Test Incident',
+        'description': 'This is a test incident',
+        'application_id': 1
+    })
+    # The route exists but returns 401 (Unauthorized) without token
+    assert response.status_code == 401
+
+
+def test_create_incident_missing_fields(client, reporter_user_id):
+    """Test creating an incident with missing required fields."""
+    user = db.session.get(User, reporter_user_id)
+
+    response = client.post(
+        '/api/incidents',
+        json={
+            'title': 'Test Incident'
+            # Missing description and application_id
+        },
+        headers=auth_headers(user)
+    )
+    assert response.status_code == 400
+    assert 'errors' in response.get_json()
+
+
+def test_list_incidents_as_reporter(client, reporter_user_id):
+    """Test listing incidents as a reporter (should only see own)."""
+    user = db.session.get(User, reporter_user_id)
+
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(
+            name='Test App',
+            description='Test application',
+            criticality='medium',
+            owner_id=user.id
+        )
+        db.session.add(app_obj)
+        db.session.commit()
+
+    for i in range(3):
+        incident = Incident(
+            title=f'Incident {i}',
+            description='Test description',
+            application_id=app_obj.id,
+            reporter_id=user.id,
+            status='new'
+        )
+        db.session.add(incident)
+    db.session.commit()
+
+    response = client.get(
+        '/api/incidents',
+        headers=auth_headers(user)
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['total'] >= 3
+    for item in data['items']:
+        assert item['reporter_id'] == user.id
+
+
+def test_list_incidents_as_admin(client, admin_user_id):
+    """Test listing incidents as admin (should see all)."""
+    user = db.session.get(User, admin_user_id)
+
+    response = client.get(
+        '/api/incidents',
+        headers=auth_headers(user)
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'items' in data
+
+
+def test_get_incident_as_reporter_own(client, reporter_user_id):
+    """Test getting own incident as reporter."""
+    user = db.session.get(User, reporter_user_id)
+
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(
+            name='Test App',
+            description='Test application',
+            criticality='medium',
+            owner_id=user.id
+        )
+        db.session.add(app_obj)
+        db.session.commit()
+
+    incident = Incident(
+        title='My Incident',
+        description='Test',
+        application_id=app_obj.id,
+        reporter_id=user.id,
+        status='new'
+    )
+    db.session.add(incident)
+    db.session.commit()
+
+    response = client.get(
+        f'/api/incidents/{incident.id}',
+        headers=auth_headers(user)
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['id'] == incident.id
+
+
+def test_get_incident_as_reporter_other(client, reporter_user_id, admin_user_id):
+    """Test reporter cannot see another user's incident."""
+    reporter = db.session.get(User, reporter_user_id)
+    admin = db.session.get(User, admin_user_id)
+
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(
+            name='Test App',
+            description='Test application',
+            criticality='medium',
+            owner_id=admin.id
+        )
+        db.session.add(app_obj)
+        db.session.commit()
+
+    incident = Incident(
+        title='Admin Incident',
+        description='Test',
+        application_id=app_obj.id,
+        reporter_id=admin.id,
+        status='new'
+    )
+    db.session.add(incident)
+    db.session.commit()
+
+    response = client.get(
+        f'/api/incidents/{incident.id}',
+        headers=auth_headers(reporter)
+    )
+    assert response.status_code == 404
+
+
+def test_triage_incident_as_support(client, support_user_id, reporter_user_id):
+    """Test support engineer can triage an incident."""
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(
+            name='Test App',
+            description='Test application',
+            criticality='medium',
+            owner_id=reporter.id
+        )
+        db.session.add(app_obj)
+        db.session.commit()
+
+    incident = Incident(
+        title='To Triage',
+        description='Triage me',
+        application_id=app_obj.id,
+        reporter_id=reporter.id,
+        status='new'
+    )
+    db.session.add(incident)
+    db.session.commit()
+
+    priority = Priority.query.filter_by(code='P1').first()
+    if not priority:
+        priority = Priority(
+            code='P1',
+            label='Critical',
+            impact_level='high',
+            urgency_level='high',
+            response_minutes=60,
+            resolution_minutes=240
+        )
+        db.session.add(priority)
+        db.session.commit()
+
+    response = client.post(
+        f'/api/incidents/{incident.id}/triage',
+        json={
+            'impact': 'high',
+            'urgency': 'high',
+            'priority_code': 'P1'
+        },
+        headers=auth_headers(support)
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['impact'] == 'high'
+    assert data['urgency'] == 'high'
+    assert data['assigned_priority_id'] == priority.id
+    assert data['status'] == 'triage'
+    assert data['response_due'] is not None
+    assert data['resolve_due'] is not None
+
+
+def test_triage_incident_already_triaged_deny_support(client, support_user_id, reporter_user_id):
+    """Test support engineer cannot re-triage an already triaged incident."""
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(
+            name='Test App',
+            description='Test application',
+            criticality='medium',
+            owner_id=reporter.id
+        )
+        db.session.add(app_obj)
+        db.session.commit()
+
+    priority = Priority.query.filter_by(code='P1').first()
+    if not priority:
+        priority = Priority(
+            code='P1',
+            label='Critical',
+            impact_level='high',
+            urgency_level='high',
+            response_minutes=60,
+            resolution_minutes=240
+        )
+        db.session.add(priority)
+        db.session.commit()
+
+    now = utc_now()
+    incident = Incident(
+        title='Already Triaged',
+        description='Already has priority',
+        application_id=app_obj.id,
+        reporter_id=reporter.id,
+        status='triage',
+        impact='high',
+        urgency='high',
+        assigned_priority_id=priority.id,
+        response_due=now,
+        resolve_due=now + timedelta(hours=4)
+    )
+    db.session.add(incident)
+    db.session.commit()
+
+    response = client.post(
+        f'/api/incidents/{incident.id}/triage',
+        json={
+            'impact': 'medium',
+            'urgency': 'medium',
+            'priority_code': 'P2'
+        },
+        headers=auth_headers(support)
+    )
+
+    assert response.status_code == 403
+    data = response.get_json()
+    assert 'Support engineers cannot change existing priority' in data['error']

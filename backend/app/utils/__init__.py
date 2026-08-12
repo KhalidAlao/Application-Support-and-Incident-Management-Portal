@@ -5,9 +5,10 @@ from .constants import (
     UrgencyLevel,
     IncidentStatus,
     ResolutionCode,
-    CriticalityLevel
+    CriticalityLevel,
 )
 from .datetime_utils import utc_now
+from .sla import calculate_sla_deadlines
 
 __all__ = [
     'Role',
@@ -18,4 +19,5 @@ __all__ = [
     'ResolutionCode',
     'CriticalityLevel',
     'utc_now',
+    'calculate_sla_deadlines',
 ]

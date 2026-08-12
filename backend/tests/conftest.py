@@ -18,9 +18,22 @@ def app():
 def client(app):
     return app.test_client()
 
+# Helper function to get auth headers for a user by ID
+def auth_headers_for_user_id(user_id):
+    """Generate authentication headers for a user by ID."""
+    user = _db.session.get(User, user_id)
+    token = AuthService.create_token(user)
+    return {'Authorization': f'Bearer {token}'}
+
+# Helper function to get auth headers for a User object (if attached)
+def auth_headers(user):
+    """Generate authentication headers for a given user."""
+    token = AuthService.create_token(user)
+    return {'Authorization': f'Bearer {token}'}
+
 @pytest.fixture
-def admin_user(app):
-    """Seed an admin user in the test database."""
+def admin_user_id(app):
+    """Seed an admin user and return its ID."""
     with app.app_context():
         user = User.query.filter_by(email='admin@example.com').first()
         if not user:
@@ -33,11 +46,12 @@ def admin_user(app):
             )
             _db.session.add(user)
             _db.session.commit()
-        return user
+            _db.session.refresh(user)
+        return user.id
 
 @pytest.fixture
-def support_user(app):
-    """Seed a support engineer user in the test database."""
+def support_user_id(app):
+    """Seed a support engineer user and return its ID."""
     with app.app_context():
         user = User.query.filter_by(email='engineer@example.com').first()
         if not user:
@@ -50,11 +64,12 @@ def support_user(app):
             )
             _db.session.add(user)
             _db.session.commit()
-        return user
+            _db.session.refresh(user)
+        return user.id
 
 @pytest.fixture
-def reporter_user(app):
-    """Seed a reporter user in the test database."""
+def reporter_user_id(app):
+    """Seed a reporter user and return its ID."""
     with app.app_context():
         user = User.query.filter_by(email='reporter@example.com').first()
         if not user:
@@ -67,11 +82,12 @@ def reporter_user(app):
             )
             _db.session.add(user)
             _db.session.commit()
-        return user
+            _db.session.refresh(user)
+        return user.id
 
 @pytest.fixture
-def team_lead_user(app):
-    """Seed a team lead user in the test database."""
+def team_lead_user_id(app):
+    """Seed a team lead user and return its ID."""
     with app.app_context():
         user = User.query.filter_by(email='teamlead@example.com').first()
         if not user:
@@ -84,4 +100,5 @@ def team_lead_user(app):
             )
             _db.session.add(user)
             _db.session.commit()
-        return user
+            _db.session.refresh(user)
+        return user.id

@@ -25,8 +25,9 @@ def create_app(config_class=None):
     from backend.app import models  # noqa: F401
 
     # Register blueprints
-    from backend.app.routes import health_bp, auth_bp
+    from backend.app.routes import health_bp, auth_bp, incidents_bp
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
+    app.register_blueprint(incidents_bp)  
 
     return app
