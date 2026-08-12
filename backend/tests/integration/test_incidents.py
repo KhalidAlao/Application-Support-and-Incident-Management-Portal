@@ -1,9 +1,10 @@
+from datetime import datetime, timedelta, timezone
 import pytest
-from datetime import datetime, timedelta
 from backend.app.models import Incident, Priority, Application, User
 from backend.app.utils import utc_now
 from backend.extensions import db
-from backend.tests.conftest import auth_headers, auth_headers_for_user_id
+from backend.tests.conftest import auth_headers
+import backend.app.utils.datetime_utils  # for monkeypatching
 
 
 def test_create_incident_success(client, reporter_user_id):
@@ -303,3 +304,204 @@ def test_triage_incident_already_triaged_deny_support(client, support_user_id, r
     assert response.status_code == 403
     data = response.get_json()
     assert 'Support engineers cannot change existing priority' in data['error']
+
+def test_assign_incident_as_team_lead(client, team_lead_user_id, support_user_id, reporter_user_id):
+    team_lead = db.session.get(User, team_lead_user_id)
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(name='Test App', description='test', criticality='medium', owner_id=reporter.id)
+        db.session.add(app_obj)
+        db.session.commit()
+
+    incident = Incident(title='To Assign', description='test', application_id=app_obj.id, reporter_id=reporter.id, status='new')
+    db.session.add(incident)
+    db.session.commit()
+
+    response = client.post(f'/api/incidents/{incident.id}/assign',
+                           json={'assignee_id': support.id},
+                           headers=auth_headers(team_lead))
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['assignee_id'] == support.id
+    assert data['status'] == 'assigned'  # auto-transition
+
+def test_assign_incident_as_support_denied(client, support_user_id, reporter_user_id):
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(name='Test App', description='test', criticality='medium', owner_id=reporter.id)
+        db.session.add(app_obj)
+        db.session.commit()
+    incident = Incident(title='Denied', description='test', application_id=app_obj.id, reporter_id=reporter.id, status='new')
+    db.session.add(incident)
+    db.session.commit()
+    response = client.post(f'/api/incidents/{incident.id}/assign',
+                           json={'assignee_id': 999},
+                           headers=auth_headers(support))
+    assert response.status_code == 403
+
+def test_legal_status_transition(client, support_user_id, reporter_user_id):
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(name='Test App', description='test', criticality='medium', owner_id=reporter.id)
+        db.session.add(app_obj)
+        db.session.commit()
+    # Create and triage (to have priority set)
+    priority = Priority.query.filter_by(code='P1').first()
+    if not priority:
+        priority = Priority(code='P1', label='Critical', impact_level='high', urgency_level='high',
+                            response_minutes=60, resolution_minutes=240)
+        db.session.add(priority)
+        db.session.commit()
+    incident = Incident(title='Status Test', description='test', application_id=app_obj.id,
+                        reporter_id=reporter.id, status='triage',
+                        impact='high', urgency='high', assigned_priority_id=priority.id,
+                        response_due=utc_now(), resolve_due=utc_now()+timedelta(hours=4))
+    db.session.add(incident)
+    db.session.commit()
+    incident.assignee_id = support.id
+    incident.status = 'assigned'
+    db.session.commit()
+
+    response = client.post(f'/api/incidents/{incident.id}/status',
+                           json={'status': 'in_progress'},
+                           headers=auth_headers(support))
+    assert response.status_code == 200
+    assert response.get_json()['status'] == 'in_progress'
+
+def test_illegal_status_transition(client, support_user_id, reporter_user_id):
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(name='Test App', description='test', criticality='medium', owner_id=reporter.id)
+        db.session.add(app_obj)
+        db.session.commit()
+    incident = Incident(title='Illegal', description='test', application_id=app_obj.id,
+                        reporter_id=reporter.id, status='new')
+    db.session.add(incident)
+    db.session.commit()
+    incident.assignee_id = support.id
+    db.session.commit()
+
+    response = client.post(f'/api/incidents/{incident.id}/status',
+                           json={'status': 'resolved'},
+                           headers=auth_headers(support))
+    assert response.status_code == 400
+    assert 'Illegal transition' in response.get_json()['error']
+
+def test_closed_requires_resolution_code(client, support_user_id, team_lead_user_id, reporter_user_id):
+    support = db.session.get(User, support_user_id)
+    team_lead = db.session.get(User, team_lead_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(name='Test App', description='test', criticality='medium', owner_id=reporter.id)
+        db.session.add(app_obj)
+        db.session.commit()
+    priority = Priority.query.filter_by(code='P1').first()
+    if not priority:
+        priority = Priority(code='P1', label='Critical', impact_level='high', urgency_level='high',
+                            response_minutes=60, resolution_minutes=240)
+        db.session.add(priority)
+        db.session.commit()
+    incident = Incident(title='Close Test', description='test', application_id=app_obj.id,
+                        reporter_id=reporter.id, status='resolved',
+                        impact='high', urgency='high', assigned_priority_id=priority.id,
+                        response_due=utc_now(), resolve_due=utc_now()+timedelta(hours=4))
+    db.session.add(incident)
+    db.session.commit()
+    incident.assignee_id = support.id
+    db.session.commit()
+
+    # Try to close without resolution_code
+    response = client.post(f'/api/incidents/{incident.id}/status',
+                           json={'status': 'closed'},
+                           headers=auth_headers(team_lead))  # team_lead is allowed to close
+    assert response.status_code == 400
+    assert 'Resolution code required' in response.get_json()['error']
+
+    # Now with resolution_code
+    response = client.post(f'/api/incidents/{incident.id}/status',
+                           json={'status': 'closed', 'resolution_code': 'fixed'},
+                           headers=auth_headers(team_lead))
+    assert response.status_code == 200
+    assert response.get_json()['status'] == 'closed'
+    assert response.get_json()['resolution_code'] == 'fixed'
+
+def test_hold_time_arithmetic(client, support_user_id, reporter_user_id, monkeypatch):
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+    app_obj = Application.query.first()
+    if not app_obj:
+        app_obj = Application(name='Test App', description='test', criticality='medium', owner_id=reporter.id)
+        db.session.add(app_obj)
+        db.session.commit()
+    priority = Priority.query.filter_by(code='P1').first()
+    if not priority:
+        priority = Priority(code='P1', label='Critical', impact_level='high', urgency_level='high',
+                            response_minutes=60, resolution_minutes=240)
+        db.session.add(priority)
+        db.session.commit()
+
+    base_time = datetime(2026, 8, 13, 10, 0, tzinfo=timezone.utc)
+    incident = Incident(
+        title='Hold Test',
+        description='test',
+        application_id=app_obj.id,
+        reporter_id=reporter.id,
+        status='assigned',
+        impact='high',
+        urgency='high',
+        assigned_priority_id=priority.id,
+        response_due=base_time + timedelta(minutes=60),
+        resolve_due=base_time + timedelta(minutes=240),
+        total_hold_minutes=0,
+        hold_started_at=None
+    )
+    db.session.add(incident)
+    db.session.commit()
+    incident.assignee_id = support.id
+    db.session.commit()
+
+    # Patch the service's `utc_now` directly
+    def fake_now_60():
+        return base_time + timedelta(minutes=60)
+    monkeypatch.setattr('backend.app.services.incident_service.utc_now', fake_now_60)
+
+    response = client.post(
+        f'/api/incidents/{incident.id}/status',
+        json={'status': 'on_hold'},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['status'] == 'on_hold'
+    assert data['hold_started_at'] is not None
+
+    def fake_now_180():
+        return base_time + timedelta(minutes=180)
+    monkeypatch.setattr('backend.app.services.incident_service.utc_now', fake_now_180)
+
+    response = client.post(
+        f'/api/incidents/{incident.id}/status',
+        json={'status': 'in_progress'},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['status'] == 'in_progress'
+    assert data['hold_started_at'] is None
+    assert data['total_hold_minutes'] == 120
+
+    expected_resolve = base_time + timedelta(minutes=360)
+    returned_resolve = datetime.fromisoformat(data['resolve_due'].replace('Z', '+00:00'))
+    if returned_resolve.tzinfo is None:
+        returned_resolve = returned_resolve.replace(tzinfo=timezone.utc)
+    assert returned_resolve == expected_resolve

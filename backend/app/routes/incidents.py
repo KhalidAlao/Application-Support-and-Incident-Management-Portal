@@ -6,6 +6,7 @@ from backend.app.schemas import (
     IncidentCreateSchema,
     IncidentUpdateSchema,
     IncidentTriageSchema,
+    IncidentStatusUpdateSchema,
     IncidentResponseSchema,
     IncidentListResponseSchema,
     UserSchema,
@@ -169,4 +170,49 @@ def triage_incident(incident_id):
     if not incident:
         return jsonify({"error": message}), status_code
 
+    return jsonify(response_schema.dump(incident)), 200
+
+@incidents_bp.route('/<int:incident_id>/assign', methods=['POST'])
+@jwt_required()
+@role_required(Role.TEAM_LEAD.value, Role.ADMIN.value)
+def assign_incident(incident_id):
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+
+    data = request.get_json()
+    if not data or 'assignee_id' not in data:
+        return jsonify({"error": "assignee_id is required"}), 400
+
+    incident, status_code, message = IncidentService.assign_incident(
+        incident_id, data['assignee_id'], user
+    )
+    if not incident:
+        return jsonify({"error": message}), status_code
+    return jsonify(response_schema.dump(incident)), 200
+
+
+@incidents_bp.route('/<int:incident_id>/status', methods=['POST'])
+@jwt_required()
+def update_status(incident_id):
+    current_user_id = int(get_jwt_identity())
+    user = db.session.get(User, current_user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+
+    try:
+        data = IncidentStatusUpdateSchema().load(request.get_json())
+    except ValidationError as err:
+        return jsonify({"errors": err.messages}), 400
+
+    incident, status_code, message = IncidentService.update_status(
+        incident_id,
+        data['status'],
+        user,
+        data.get('reason'),
+        data.get('resolution_code')
+    )
+    if not incident:
+        return jsonify({"error": message}), status_code
     return jsonify(response_schema.dump(incident)), 200

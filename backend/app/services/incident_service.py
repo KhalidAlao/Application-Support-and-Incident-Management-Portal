@@ -1,10 +1,10 @@
 from typing import List, Optional, Dict, Any, Tuple
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_, or_, desc
 from backend.extensions import db
 from backend.app.models import Incident, User, Priority, Application, AuditLog
-from backend.app.utils import calculate_sla_deadlines, IncidentStatus, utc_now
-from backend.app.utils.constants import Role
+from backend.app.utils import calculate_sla_deadlines, IncidentStatus, utc_now, ensure_utc
+from backend.app.utils.constants import Role, is_transition_legal, get_allowed_roles_for_transition
 
 
 class IncidentService:
@@ -86,7 +86,6 @@ class IncidentService:
     @staticmethod
     def get_incident(incident_id: int, current_user: User) -> Optional[Incident]:
         """Get a single incident with access control."""
-        # FIXED: assign the result of db.session.get()
         incident = db.session.get(Incident, incident_id)
         if not incident:
             return None
@@ -118,7 +117,6 @@ class IncidentService:
         current_user: User
     ) -> Tuple[Optional[Incident], int, str]:
         """Update incident fields with audit logging."""
-        # FIXED: use db.session.get()
         incident = db.session.get(Incident, incident_id)
         if not incident:
             return None, 404, "Incident not found"
@@ -163,7 +161,6 @@ class IncidentService:
         current_user: User
     ) -> Tuple[Optional[Incident], int, str]:
         """Triage an incident: set impact, urgency, priority, and SLA deadlines."""
-        # FIXED: assign the result of db.session.get()
         incident = db.session.get(Incident, incident_id)
         if not incident:
             return None, 404, "Incident not found"
@@ -251,3 +248,134 @@ class IncidentService:
 
         db.session.commit()
         return incident, 200, "Triage complete"
+
+    @staticmethod
+    def assign_incident(
+        incident_id: int,
+        assignee_id: int,
+        current_user: User
+    ) -> Tuple[Optional[Incident], int, str]:
+        incident = db.session.get(Incident, incident_id)
+        if not incident:
+            return None, 404, "Incident not found"
+
+        if current_user.role not in [Role.TEAM_LEAD.value, Role.ADMIN.value]:
+            return None, 403, "Only team leads and admins can assign incidents"
+
+        assignee = db.session.get(User, assignee_id)
+        if not assignee:
+            return None, 404, "Assignee user not found"
+
+        old_assignee_id = incident.assignee_id
+        old_assignee_name = None
+        if old_assignee_id:
+            old_user = db.session.get(User, old_assignee_id)
+            old_assignee_name = old_user.name if old_user else None
+
+        incident.assignee_id = assignee_id
+
+        old_status = incident.status
+        if old_status in [IncidentStatus.NEW.value, IncidentStatus.TRIAGE.value]:
+            incident.status = IncidentStatus.ASSIGNED.value
+
+        audit = AuditLog(
+            incident_id=incident.id,
+            actor_id=current_user.id,
+            actor_name=current_user.name,
+            field_changed='assignee_id',
+            old_value=old_assignee_name or "Unassigned",
+            new_value=assignee.name,
+            reason=f"Assigned by {current_user.name}",
+            timestamp=utc_now(),
+        )
+        db.session.add(audit)
+
+        if old_status != incident.status:
+            audit = AuditLog(
+                incident_id=incident.id,
+                actor_id=current_user.id,
+                actor_name=current_user.name,
+                field_changed='status',
+                old_value=old_status,
+                new_value=incident.status,
+                reason=f"Auto‑transitioned to {incident.status} on assignment",
+                timestamp=utc_now(),
+            )
+            db.session.add(audit)
+
+        db.session.commit()
+        return incident, 200, "Incident assigned successfully"
+
+    @staticmethod
+    def update_status(
+        incident_id: int,
+        new_status: str,
+        current_user: User,
+        reason: Optional[str] = None,
+        resolution_code: Optional[str] = None
+    ) -> Tuple[Optional[Incident], int, str]:
+        incident = db.session.get(Incident, incident_id)
+        if not incident:
+            return None, 404, "Incident not found"
+
+        old_status = incident.status
+
+        # 1. Check legal transition (state machine)
+        if not is_transition_legal(old_status, new_status):
+            return None, 400, f"Illegal transition: {old_status} -> {new_status}"
+
+        # 2. Role restriction – fail‐closed if no entry
+        allowed_roles = get_allowed_roles_for_transition(old_status, new_status)
+        if current_user.role not in allowed_roles:
+            return None, 403, f"Insufficient permissions for {old_status} -> {new_status}"
+
+        # 3. For support_engineer, must be assigned to this incident
+        if current_user.role == Role.SUPPORT_ENGINEER.value and incident.assignee_id != current_user.id:
+            return None, 403, "Support engineers can only update assigned incidents"
+
+        # 4. Resolution code required for CLOSED
+        if new_status == IncidentStatus.CLOSED.value and not resolution_code:
+            return None, 400, "Resolution code required when closing an incident"
+
+        # 5. Hold‑time bookkeeping (atomic)
+        if new_status == IncidentStatus.ON_HOLD.value and old_status != IncidentStatus.ON_HOLD.value:
+            # Entering hold: record start time
+            incident.hold_started_at = utc_now()
+
+        elif old_status == IncidentStatus.ON_HOLD.value and new_status != IncidentStatus.ON_HOLD.value:
+            # Exiting hold: accumulate hold time and extend deadlines
+            if incident.hold_started_at:
+                now = utc_now()
+                # Defensively normalize: SQLite may return naive datetimes
+                held_start = ensure_utc(incident.hold_started_at)
+                held_seconds = (now - held_start).total_seconds()
+                held_minutes = int(held_seconds // 60)
+                if held_minutes > 0:
+                    incident.total_hold_minutes += held_minutes
+                    # Extend existing deadlines by this hold duration
+                    incident.response_due += timedelta(minutes=held_minutes)
+                    incident.resolve_due += timedelta(minutes=held_minutes)
+                incident.hold_started_at = None
+
+        # 6. Apply status change
+        incident.status = new_status
+
+        # 7. Store resolution code if closed
+        if new_status == IncidentStatus.CLOSED.value:
+            incident.resolution_code = resolution_code
+
+        # 8. Audit log
+        audit = AuditLog(
+            incident_id=incident.id,
+            actor_id=current_user.id,
+            actor_name=current_user.name,
+            field_changed='status',
+            old_value=old_status,
+            new_value=new_status,
+            reason=reason,
+            timestamp=utc_now(),
+        )
+        db.session.add(audit)
+
+        db.session.commit()
+        return incident, 200, "Status updated successfully"

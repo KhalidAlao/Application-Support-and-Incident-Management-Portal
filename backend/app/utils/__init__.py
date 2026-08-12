@@ -7,7 +7,7 @@ from .constants import (
     ResolutionCode,
     CriticalityLevel,
 )
-from .datetime_utils import utc_now
+from .datetime_utils import utc_now, ensure_utc
 from .sla import calculate_sla_deadlines
 
 __all__ = [
@@ -19,5 +19,6 @@ __all__ = [
     'ResolutionCode',
     'CriticalityLevel',
     'utc_now',
+    'ensure_utc',
     'calculate_sla_deadlines',
 ]

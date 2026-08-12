@@ -64,3 +64,8 @@ class IncidentListResponseSchema(Schema):
     page = fields.Int()
     per_page = fields.Int()
     pages = fields.Int()
+    
+class IncidentStatusUpdateSchema(Schema):
+    status = fields.Str(required=True, validate=validate.OneOf([v.value for v in IncidentStatus]))
+    reason = fields.Str(allow_none=True, validate=validate.Length(max=500))
+    resolution_code = fields.Str(allow_none=True, validate=validate.OneOf([v.value for v in ResolutionCode]))
