@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Incident Detail</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <header class="app-header">
+        <div class="container header-inner">
+            <a href="/dashboard.html" class="btn btn-secondary btn-sm">← Back</a>
+            <h1 class="app-title" style="font-size:1.1rem; margin:0;">Incident Detail</h1>
+            <div class="header-right">
+                <span id="user-info" class="user-badge">Loading...</span>
+                <button id="logout-btn" class="btn btn-secondary btn-sm">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container" style="padding-top:1.5rem;">
+        <div id="incident-content">
+            <!-- Incident details will be rendered here -->
+            <div id="incident-header" class="detail-header">
+                <div>
+                    <h2 id="incident-title">Loading...</h2>
+                    <span id="incident-status-badge" class="badge">—</span>
+                </div>
+                <div>
+                    <span id="incident-id" class="text-muted">#—</span>
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                <div class="detail-section">
+                    <h3>Details</h3>
+                    <dl class="detail-list">
+                        <dt>Description</dt>
+                        <dd id="incident-description">—</dd>
+                        <dt>Priority</dt>
+                        <dd id="incident-priority">—</dd>
+                        <dt>Impact</dt>
+                        <dd id="incident-impact">—</dd>
+                        <dt>Urgency</dt>
+                        <dd id="incident-urgency">—</dd>
+                        <dt>Application</dt>
+                        <dd id="incident-application">—</dd>
+                        <dt>Assignee</dt>
+                        <dd id="incident-assignee">—</dd>
+                        <dt>Reporter</dt>
+                        <dd id="incident-reporter">—</dd>
+                        <dt>Created</dt>
+                        <dd id="incident-created">—</dd>
+                        <dt>Updated</dt>
+                        <dd id="incident-updated">—</dd>
+                        <dt>Response Due</dt>
+                        <dd id="incident-response-due">—</dd>
+                        <dt>Resolution Due</dt>
+                        <dd id="incident-resolve-due">—</dd>
+                        <dt>Total Hold Minutes</dt>
+                        <dd id="incident-hold-minutes">0</dd>
+                        <dt>Resolution Code</dt>
+                        <dd id="incident-resolution-code">—</dd>
+                    </dl>
+                </div>
+
+                <!-- SLA Progress -->
+                <div class="detail-section">
+                    <h3>SLA Status</h3>
+                    <div id="sla-progress-container">
+                        <div id="sla-progress-bar" style="width:0%; background:#3b82f6; height:8px; border-radius:4px;"></div>
+                    </div>
+                    <p id="sla-time-remaining" class="text-muted">Loading...</p>
+                </div>
+            </div>
+
+            <!-- Edit section -->
+            <div id="edit-section" class="detail-section" style="display:none;">
+                <h3>Edit Incident</h3>
+                <form id="edit-form">
+                    <div class="form-group">
+                        <label for="edit-title">Title</label>
+                        <input type="text" id="edit-title" />
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-description">Description</label>
+                        <textarea id="edit-description" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <div id="edit-error" class="error-message hidden"></div>
+                </form>
+            </div>
+
+            <!-- Status transition -->
+            <div id="status-section" class="detail-section" style="display:none;">
+                <h3>Update Status</h3>
+                <form id="status-form">
+                    <div class="form-group">
+                        <label for="status-select">New Status</label>
+                        <select id="status-select">
+                            <!-- populated from IncidentStatus enum via JS -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="status-reason">Reason (optional)</label>
+                        <input type="text" id="status-reason" />
+                    </div>
+                    <div class="form-group" id="resolution-code-group" style="display:none;">
+                        <label for="resolution-code">Resolution Code</label>
+                        <select id="resolution-code">
+                            <option value="fixed">Fixed</option>
+                            <option value="workaround">Workaround</option>
+                            <option value="not_a_bug">Not a Bug</option>
+                            <option value="duplicate">Duplicate</option>
+                            <option value="cant_reproduce">Can't Reproduce</option>
+                            <option value="third_party">Third Party</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                    <div id="status-error" class="error-message hidden"></div>
+                </form>
+            </div>
+
+            <!-- Audit Log -->
+            <div class="detail-section">
+                <h3>Audit Log</h3>
+                <table class="incident-table" id="audit-table">
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Old Value</th>
+                            <th>New Value</th>
+                            <th>Reason</th>
+                            <th>Actor</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-tbody">
+                        <tr><td colspan="6" class="text-center">No audit entries.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="/static/js/incident-detail.js"></script>
+</body>
+</html>

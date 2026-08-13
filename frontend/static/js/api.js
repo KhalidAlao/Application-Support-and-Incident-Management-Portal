@@ -1,6 +1,13 @@
-// NOTE: Token stored in localStorage for simplicity. This is readable by any JS
-// running on the page, including injected via XSS. A production system handling
-// sensitive data would prefer httpOnly cookies set by the server on login instead.
+// frontend/static/js/api.js
+//
+// TOKEN STORAGE TRADE-OFF:
+// This app stores the JWT in localStorage for simplicity.
+// localStorage is accessible to any JavaScript running on the page.
+// If the app has an XSS vulnerability anywhere, an attacker can read
+// the token and impersonate the user.
+// In a production system handling sensitive data, prefer httpOnly cookies
+// (set by the server) which are not accessible to JavaScript at all.
+// See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
 
 const API_BASE = 'http://localhost:5001/api';
 
@@ -90,7 +97,6 @@ export async function apiFetch(endpoint, options = {}) {
     if (response.status === 401) {
         removeToken();
         removeUser();
-        // Preserve the current URL to redirect back after login
         const currentPath = window.location.pathname + window.location.search;
         window.location.href = `/login.html?next=${encodeURIComponent(currentPath)}`;
         return; // caller should not continue
@@ -103,5 +109,15 @@ export async function apiFetch(endpoint, options = {}) {
 export async function apiJson(endpoint, options = {}) {
     const response = await apiFetch(endpoint, options);
     if (!response) return null;
-    return response.json();
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const error = new Error(data.error || data.message || `Request failed (${response.status})`);
+        error.status = response.status;
+        error.data = data;
+        throw error;
+    }
+
+    return data;
 }

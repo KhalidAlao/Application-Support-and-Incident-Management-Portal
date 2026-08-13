@@ -592,3 +592,54 @@ def test_incident_response_includes_audit_logs(client, admin_user_id, support_us
     assert title_entry is not None
     assert title_entry['old_value'] == 'Audit Test Incident'
     assert title_entry['new_value'] == 'Audit Test Incident - Updated'
+    
+    
+def test_hold_on_untriaged_incident_does_not_crash(client, admin_user_id, support_user_id, reporter_user_id):
+    admin = db.session.get(User, admin_user_id)
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+
+    app = Application(name='Hold Test App', description='test', criticality='medium', owner_id=admin.id)
+    db.session.add(app)
+    db.session.commit()
+
+    response = client.post('/api/incidents', json={
+        'title': 'Untriaged Hold Test',
+        'description': 'This incident has no priority/SLA',
+        'application_id': app.id
+    }, headers=auth_headers(reporter))
+    assert response.status_code == 201
+    incident_id = response.get_json()['id']
+
+    # Assign (legally auto-transitions NEW -> ASSIGNED, no triage required)
+    response = client.post(f'/api/incidents/{incident_id}/assign',
+        json={'assignee_id': support.id}, headers=auth_headers(admin))
+    assert response.status_code == 200
+    assert response.get_json()['status'] == 'assigned'
+
+    # ASSIGNED -> IN_PROGRESS (legal for assigned support engineer)
+    response = client.post(f'/api/incidents/{incident_id}/status',
+        json={'status': 'in_progress'}, headers=auth_headers(support))
+    assert response.status_code == 200
+
+    # IN_PROGRESS -> ON_HOLD
+    response = client.post(f'/api/incidents/{incident_id}/status',
+        json={'status': 'on_hold', 'reason': 'Testing hold'}, headers=auth_headers(support))
+    assert response.status_code == 200
+    assert response.get_json()['hold_started_at'] is not None
+
+    # ON_HOLD -> IN_PROGRESS (this is where the original crash occurred)
+    response = client.post(f'/api/incidents/{incident_id}/status',
+        json={'status': 'in_progress', 'reason': 'Resuming'}, headers=auth_headers(support))
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['hold_started_at'] is None
+    assert data['response_due'] is None
+    assert data['resolve_due'] is None
+
+    # Confirm audit trail
+    response = client.get(f'/api/incidents/{incident_id}', headers=auth_headers(admin))
+    logs = response.get_json()['audit_logs']
+    # hold_skipped only appears if held_minutes > 0 — test runs fast, so don't hard-assert its presence,
+    # but at minimum confirm no crash occurred and status is correctly logged
+    assert any(l['field_changed'] == 'status' and l['new_value'] == 'in_progress' for l in logs)

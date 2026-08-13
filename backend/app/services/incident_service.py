@@ -183,6 +183,9 @@ class IncidentService:
         incident.urgency = urgency
         incident.assigned_priority_id = priority.id
 
+        # NOTE: If the incident accumulated hold time before being triaged,
+        # this calculation does not account for that hold time.
+        # That is a known deferred edge case – we do not adjust for it now.
         start_time = utc_now()
         response_due, resolve_due = calculate_sla_deadlines(
             priority.response_minutes,
@@ -305,7 +308,7 @@ class IncidentService:
 
         db.session.commit()
         return incident, 200, "Incident assigned successfully"
-    
+
     @staticmethod
     def update_status(
         incident_id: int,
@@ -339,9 +342,11 @@ class IncidentService:
 
         # 5. Hold‑time bookkeeping (atomic)
         if new_status == IncidentStatus.ON_HOLD.value and old_status != IncidentStatus.ON_HOLD.value:
+            # Entering hold: record start time
             incident.hold_started_at = utc_now()
 
         elif old_status == IncidentStatus.ON_HOLD.value and new_status != IncidentStatus.ON_HOLD.value:
+            # Exiting hold: accumulate hold time and extend deadlines (if they exist)
             if incident.hold_started_at:
                 now = utc_now()
                 held_start = ensure_utc(incident.hold_started_at)
@@ -349,8 +354,24 @@ class IncidentService:
                 held_minutes = int(held_seconds // 60)
                 if held_minutes > 0:
                     incident.total_hold_minutes += held_minutes
-                    incident.response_due += timedelta(minutes=held_minutes)
-                    incident.resolve_due += timedelta(minutes=held_minutes)
+                    # Defensive guard: only extend deadlines if they exist
+                    if incident.response_due is not None and incident.resolve_due is not None:
+                        incident.response_due += timedelta(minutes=held_minutes)
+                        incident.resolve_due += timedelta(minutes=held_minutes)
+                    else:
+                        # No SLA deadlines set (e.g., incident was never triaged).
+                        # Record hold time but skip deadline extension; log for visibility.
+                        audit = AuditLog(
+                            incident_id=incident.id,
+                            actor_id=current_user.id,
+                            actor_name=current_user.name,
+                            field_changed='hold_skipped',
+                            old_value=None,
+                            new_value=f"Hold time {held_minutes}min recorded but no SLA deadlines to extend",
+                            reason="Incident left ON_HOLD without SLA deadlines set",
+                            timestamp=utc_now(),
+                        )
+                        db.session.add(audit)
                 incident.hold_started_at = None
 
         # 6. Apply status change
@@ -361,7 +382,6 @@ class IncidentService:
             incident.resolved_at = utc_now()
         elif new_status == IncidentStatus.REOPENED.value:
             incident.resolved_at = None
-        # For other statuses, leave resolved_at as it is
 
         # 8. Store resolution code if closed
         if new_status == IncidentStatus.CLOSED.value:
@@ -382,5 +402,3 @@ class IncidentService:
 
         db.session.commit()
         return incident, 200, "Status updated successfully"
-
-    
