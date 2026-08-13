@@ -46,14 +46,20 @@ class IncidentRepository:
     def get_avg_resolution_time_by_priority() -> List[Dict[str, Any]]:
         """
         Average actual resolution time (minutes) grouped by priority.
-        Computed in Python to avoid SQLite/PostgreSQL dialect differences.
+        Computed in Python rather than database-side GROUP BY + AVG() to avoid
+        SQLite/PostgreSQL dialect differences in date arithmetic (func.extract).
+        This is a deliberate trade‑off:
+            - Pros: portable across test (SQLite) and production (PostgreSQL),
+                    simpler to test without environment-specific skips.
+            - Cons: If the incidents table grows large (>10k rows), this
+                    will become a performance bottleneck. At that point,
+                    switch to a database‑side aggregate query using
+                    func.extract('epoch', ...) and Postgres.
         """
-        # Fetch all resolved incidents with their priority and timestamps
         incidents = Incident.query.filter(
             Incident.resolved_at.isnot(None)
         ).all()
 
-        # Group by priority_id
         groups = defaultdict(list)
         for inc in incidents:
             if inc.assigned_priority_id:
@@ -63,11 +69,8 @@ class IncidentRepository:
         for priority_id, pairs in groups.items():
             total_seconds = sum((res - cre).total_seconds() for cre, res in pairs)
             count = len(pairs)
-            if count == 0:
-                avg_minutes = None
-            else:
-                avg_minutes = (total_seconds / count) / 60
-            priority = Priority.query.get(priority_id)
+            avg_minutes = (total_seconds / count) / 60 if count else None
+            priority = db.session.get(Priority, priority_id)  # fixed
             if priority:
                 result.append({
                     'priority': priority.code,
@@ -79,14 +82,13 @@ class IncidentRepository:
     def get_stats_by_application() -> List[Dict[str, Any]]:
         """
         Incident count and average resolution time per application.
-        Computed in Python for consistency.
+        Same trade‑off as get_avg_resolution_time_by_priority:
+        computed in Python for portability across SQLite/PostgreSQL.
         """
-        # Fetch all resolved incidents with their application and timestamps
         incidents = Incident.query.filter(
             Incident.resolved_at.isnot(None)
         ).all()
 
-        # Group by application_id
         groups = defaultdict(list)
         for inc in incidents:
             groups[inc.application_id].append((inc.created_at, inc.resolved_at))
@@ -97,7 +99,7 @@ class IncidentRepository:
             total_seconds = sum((res - cre).total_seconds() for cre, res in pairs)
             avg_seconds = total_seconds / count if count else 0
             avg_minutes = avg_seconds / 60 if count else None
-            app = Application.query.get(app_id)
+            app = db.session.get(Application, app_id)  # fixed
             if app:
                 result.append({
                     'application_id': app.id,
