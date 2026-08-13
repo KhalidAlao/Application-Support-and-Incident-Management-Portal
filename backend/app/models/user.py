@@ -1,6 +1,7 @@
 from backend.extensions import db
 from sqlalchemy import func
-from backend.app.utils import Role, utc_now
+from backend.app.utils import utc_now
+from backend.app.utils.constants import Role
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -11,12 +12,17 @@ class User(db.Model):
     hashed_password = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(50), nullable=False, default=Role.REPORTER.value)
 
-    # Timezone-aware UTC timestamps with database-level defaults
-    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        default=utc_now,          
+        nullable=False
+    )
     updated_at = db.Column(
         db.DateTime(timezone=True),
         server_default=func.now(),
-        onupdate=func.now(),
+        default=utc_now,         
+        onupdate=utc_now,         
         nullable=False
     )
 

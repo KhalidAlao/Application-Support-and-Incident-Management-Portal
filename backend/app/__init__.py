@@ -1,10 +1,9 @@
-from flask import Flask
+from flask import Flask, redirect, send_from_directory
 from flask_cors import CORS
 import os
 
 from backend.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from backend.extensions import db, jwt, swagger, migrate
-from backend.app.routes import health_bp, auth_bp, incidents_bp, applications_bp, knowledge_bp, reports_bp
 
 def create_app(config_class=None):
     if config_class is None:
@@ -13,7 +12,12 @@ def create_app(config_class=None):
     if config_class is ProductionConfig and not config_class.SQLALCHEMY_DATABASE_URI:
         raise ValueError("DATABASE_URL must be set when using ProductionConfig")
 
-    app = Flask(__name__)
+    # Static folder for frontend assets (CSS, JS)
+    app = Flask(
+        __name__,
+        static_folder='../../frontend/static',  # relative to backend/app/
+        static_url_path='/static'
+    )
     app.config.from_object(config_class)
 
     db.init_app(app)
@@ -22,16 +26,39 @@ def create_app(config_class=None):
     swagger.init_app(app)
     migrate.init_app(app, db)
 
-    # Import models to register with db.metadata
     from backend.app import models  # noqa: F401
 
-    from backend.app.routes import health_bp, auth_bp, incidents_bp, applications_bp
-    # Register blueprints
+    # Register API blueprints
+    from backend.app.routes import (
+        health_bp, auth_bp, incidents_bp,
+        applications_bp, knowledge_bp, reports_bp
+    )
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
     app.register_blueprint(incidents_bp)
     app.register_blueprint(applications_bp)
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(reports_bp)
+
+    # Path to the frontend/ folder (repo root)
+    # app.root_path = backend/app/  ->  backend/app/../../frontend  -> frontend/
+    frontend_dir = os.path.join(app.root_path, '..', '..', 'frontend')
+    # Debug: print path to verify during startup (can be removed later)
+    print(f"Serving frontend from: {frontend_dir}")
+
+    # Explicit routes for frontend HTML pages
+    @app.route('/')
+    def index():
+        return redirect('/login.html')
+
+    @app.route('/login.html')
+    def login_page():
+        return send_from_directory(frontend_dir, 'login.html')
+
+    @app.route('/dashboard.html')
+    def dashboard_page():
+        return send_from_directory(frontend_dir, 'dashboard.html')
+
+   
 
     return app

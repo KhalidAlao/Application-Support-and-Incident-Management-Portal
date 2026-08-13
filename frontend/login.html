@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login – Incident Support Portal</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <h1>Incident Support Portal</h1>
+            <p class="subtitle">Sign in to manage support tickets</p>
+
+            <form id="login-form" autocomplete="on">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input
+                        type="email"
+                        id="email"
+                        placeholder="you@example.com"
+                        required
+                        autofocus
+                    />
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input
+                        type="password"
+                        id="password"
+                        placeholder="Enter your password"
+                        required
+                    />
+                </div>
+
+                <div id="login-error" class="error-message hidden"></div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    Sign In
+                </button>
+            </form>
+
+            <p class="demo-note">
+                Demo accounts:<br />
+                <strong>Admin:</strong> admin@example.com / password<br />
+                <strong>Engineer:</strong> engineer@example.com / password<br />
+                <strong>Reporter:</strong> reporter@example.com / password
+            </p>
+        </div>
+    </div>
+
+    <script type="module" src="/static/js/login.js"></script>
+</body>
+</html>
