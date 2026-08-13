@@ -21,46 +21,46 @@ async function loadCreatePage() {
     await loadApplications();
 
     form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        errorEl.classList.add('hidden');
+    e.preventDefault();
+    errorEl.classList.add('hidden');
 
-        const title = titleInput.value.trim();
-        const description = descriptionInput.value.trim();
-        const applicationId = applicationSelect.value;
-        const reportedPriority = priorityTextInput.value.trim();
+    const title = titleInput.value.trim();
+    const description = descriptionInput.value.trim();
+    const applicationId = applicationSelect.value;
+    const reportedPriority = priorityTextInput.value.trim(); // <-- read it
 
-        if (!title || !description || !applicationId) {
-            errorEl.textContent = 'Title, Description, and Application are required.';
-            errorEl.classList.remove('hidden');
-            return;
+    if (!title || !description || !applicationId) {
+        errorEl.textContent = 'Title, Description, and Application are required.';
+        errorEl.classList.remove('hidden');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating…';
+
+    const payload = {
+        title,
+        description,
+        reported_priority_text: reportedPriority || null, // <-- now included
+        application_id: parseInt(applicationId, 10)
+    };
+
+    try {
+        const data = await apiJson('/incidents', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+        if (data) {
+            window.location.href = `/incident-detail.html?id=${data.id}`;
         }
-
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Creating…';
-
-        const payload = {
-            title,
-            description,
-            reported_priority_text: reportedPriority || null,
-            application_id: parseInt(applicationId, 10)
-        };
-
-        try {
-            const data = await apiJson('/incidents', {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
-            if (data) {
-                window.location.href = `/incident-detail.html?id=${data.id}`;
-            }
-        } catch (err) {
-            errorEl.textContent = err.message || 'Failed to create incident.';
-            errorEl.classList.remove('hidden');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Incident';
-        }
-    });
+    } catch (err) {
+        errorEl.textContent = err.message || 'Failed to create incident.';
+        errorEl.classList.remove('hidden');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Incident';
+    }
+});
 
     logoutBtn.addEventListener('click', logout);
 }
