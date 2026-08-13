@@ -4,6 +4,7 @@ import os
 
 from backend.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from backend.extensions import db, jwt, swagger, migrate
+from backend.seed import seed_db
 
 def create_app(config_class=None):
     if config_class is None:
@@ -25,6 +26,7 @@ def create_app(config_class=None):
     CORS(app)
     swagger.init_app(app)
     migrate.init_app(app, db)
+    app.cli.add_command(seed_db)
 
     from backend.app import models  # noqa: F401
 
