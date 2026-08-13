@@ -305,7 +305,7 @@ class IncidentService:
 
         db.session.commit()
         return incident, 200, "Incident assigned successfully"
-
+    
     @staticmethod
     def update_status(
         incident_id: int,
@@ -339,20 +339,16 @@ class IncidentService:
 
         # 5. Hold‑time bookkeeping (atomic)
         if new_status == IncidentStatus.ON_HOLD.value and old_status != IncidentStatus.ON_HOLD.value:
-            # Entering hold: record start time
             incident.hold_started_at = utc_now()
 
         elif old_status == IncidentStatus.ON_HOLD.value and new_status != IncidentStatus.ON_HOLD.value:
-            # Exiting hold: accumulate hold time and extend deadlines
             if incident.hold_started_at:
                 now = utc_now()
-                # Defensively normalize: SQLite may return naive datetimes
                 held_start = ensure_utc(incident.hold_started_at)
                 held_seconds = (now - held_start).total_seconds()
                 held_minutes = int(held_seconds // 60)
                 if held_minutes > 0:
                     incident.total_hold_minutes += held_minutes
-                    # Extend existing deadlines by this hold duration
                     incident.response_due += timedelta(minutes=held_minutes)
                     incident.resolve_due += timedelta(minutes=held_minutes)
                 incident.hold_started_at = None
@@ -360,11 +356,18 @@ class IncidentService:
         # 6. Apply status change
         incident.status = new_status
 
-        # 7. Store resolution code if closed
+        # 7. Update resolved_at based on status transition
+        if new_status in [IncidentStatus.RESOLVED.value, IncidentStatus.CLOSED.value]:
+            incident.resolved_at = utc_now()
+        elif new_status == IncidentStatus.REOPENED.value:
+            incident.resolved_at = None
+        # For other statuses, leave resolved_at as it is
+
+        # 8. Store resolution code if closed
         if new_status == IncidentStatus.CLOSED.value:
             incident.resolution_code = resolution_code
 
-        # 8. Audit log
+        # 9. Audit log
         audit = AuditLog(
             incident_id=incident.id,
             actor_id=current_user.id,
@@ -379,3 +382,5 @@ class IncidentService:
 
         db.session.commit()
         return incident, 200, "Status updated successfully"
+
+    

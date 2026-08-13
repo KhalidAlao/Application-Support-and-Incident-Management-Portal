@@ -4,7 +4,7 @@ import os
 
 from backend.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from backend.extensions import db, jwt, swagger, migrate
-from backend.app.routes import health_bp, auth_bp, incidents_bp, applications_bp, knowledge_bp
+from backend.app.routes import health_bp, auth_bp, incidents_bp, applications_bp, knowledge_bp, reports_bp
 
 def create_app(config_class=None):
     if config_class is None:
@@ -32,5 +32,6 @@ def create_app(config_class=None):
     app.register_blueprint(incidents_bp)
     app.register_blueprint(applications_bp)
     app.register_blueprint(knowledge_bp)
+    app.register_blueprint(reports_bp)
 
     return app

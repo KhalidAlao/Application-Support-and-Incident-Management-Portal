@@ -85,6 +85,7 @@ class Incident(db.Model):
     priority = db.relationship('Priority', foreign_keys=[assigned_priority_id], backref='incidents')
     application = db.relationship('Application', foreign_keys=[application_id], backref='incidents')
     knowledge_articles = db.relationship('KnowledgeArticle', secondary='incident_knowledge', backref='incidents', lazy='select', viewonly=True)
+    resolved_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
 
     # Audit logs – NO cascade (audit trail must survive incident deletion)
     audit_logs = db.relationship('AuditLog', backref='incident', lazy=True)

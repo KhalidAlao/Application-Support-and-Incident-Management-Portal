@@ -50,6 +50,7 @@ class IncidentResponseSchema(Schema):
     assignee_id = fields.Int(allow_none=True)
     application_id = fields.Int()
     assigned_priority_id = fields.Int(allow_none=True)
+    resolved_at = fields.DateTime(allow_none=True)
 
     # Nested objects for convenience
     reporter = fields.Nested('UserSchema', only=('id', 'name', 'email'), allow_none=True)
