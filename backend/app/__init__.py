@@ -4,6 +4,7 @@ import os
 
 from backend.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from backend.extensions import db, jwt, swagger, migrate
+from backend.app.routes import health_bp, auth_bp, incidents_bp, applications_bp
 
 def create_app(config_class=None):
     if config_class is None:
@@ -24,10 +25,11 @@ def create_app(config_class=None):
     # Import models to register with db.metadata
     from backend.app import models  # noqa: F401
 
+    from backend.app.routes import health_bp, auth_bp, incidents_bp, applications_bp
     # Register blueprints
-    from backend.app.routes import health_bp, auth_bp, incidents_bp
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
-    app.register_blueprint(incidents_bp)  
+    app.register_blueprint(incidents_bp)
+    app.register_blueprint(applications_bp)
 
     return app
