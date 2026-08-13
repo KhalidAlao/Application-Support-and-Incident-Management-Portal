@@ -131,3 +131,98 @@ def test_unlink_article(client, support_user_id, reporter_user_id):
     audit = AuditLog.query.filter_by(incident_id=incident.id, field_changed='knowledge_unlinked').first()
     assert audit is not None
     assert 'To unlink' in audit.old_value
+def test_update_article_as_support(client, support_user_id):
+    support = db.session.get(User, support_user_id)
+    # Create article
+    response = client.post(
+        '/api/knowledge',
+        json={'title': 'Original', 'content': 'Original content', 'tags': 'test'},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 201
+    article = response.get_json()
+
+    # Update
+    update_response = client.put(
+        f'/api/knowledge/{article["id"]}',
+        json={'title': 'Updated Title', 'content': 'New content', 'tags': 'updated'},
+        headers=auth_headers(support)
+    )
+    assert update_response.status_code == 200
+    data = update_response.get_json()
+    assert data['title'] == 'Updated Title'
+    assert data['content'] == 'New content'
+    assert data['tags'] == 'updated'
+
+
+def test_update_article_as_reporter_denied(client, reporter_user_id, support_user_id):
+    support = db.session.get(User, support_user_id)
+    # Create article as support
+    response = client.post(
+        '/api/knowledge',
+        json={'title': 'To Update', 'content': 'content', 'tags': ''},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 201
+    article = response.get_json()
+
+    # Try update as reporter
+    reporter = db.session.get(User, reporter_user_id)
+    update_response = client.put(
+        f'/api/knowledge/{article["id"]}',
+        json={'title': 'Hacked'},
+        headers=auth_headers(reporter)
+    )
+    assert update_response.status_code == 403
+
+
+def test_update_article_not_found(client, support_user_id):
+    support = db.session.get(User, support_user_id)
+    response = client.put(
+        '/api/knowledge/99999',
+        json={'title': 'Not Found'},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 404
+
+
+def test_delete_article_as_support(client, support_user_id):
+    support = db.session.get(User, support_user_id)
+    # Create article
+    response = client.post(
+        '/api/knowledge',
+        json={'title': 'To Delete', 'content': 'content', 'tags': ''},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 201
+    article = response.get_json()
+
+    # Delete
+    delete_response = client.delete(
+        f'/api/knowledge/{article["id"]}',
+        headers=auth_headers(support)
+    )
+    assert delete_response.status_code == 200
+    assert delete_response.get_json()['message'] == 'Article deleted'
+
+    # Verify gone
+    get_response = client.get(f'/api/knowledge/{article["id"]}', headers=auth_headers(support))
+    assert get_response.status_code == 404
+
+
+def test_delete_article_as_reporter_denied(client, reporter_user_id, support_user_id):
+    support = db.session.get(User, support_user_id)
+    response = client.post(
+        '/api/knowledge',
+        json={'title': 'To Delete Denied', 'content': 'content'},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 201
+    article = response.get_json()
+
+    reporter = db.session.get(User, reporter_user_id)
+    delete_response = client.delete(
+        f'/api/knowledge/{article["id"]}',
+        headers=auth_headers(reporter)
+    )
+    assert delete_response.status_code == 403

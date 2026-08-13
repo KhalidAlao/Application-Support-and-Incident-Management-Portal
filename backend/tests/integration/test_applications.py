@@ -141,3 +141,152 @@ def test_create_application_invalid_owner(client, team_lead_user_id):
     )
     assert response.status_code == 404
     assert 'does not exist' in response.get_json()['error']
+
+def test_update_application_not_found(client, team_lead_user_id):
+    """Attempt to update a non‑existent application returns 404."""
+    team_lead = db.session.get(User, team_lead_user_id)
+    response = client.put(
+        '/api/applications/99999',
+        json={'name': 'Does Not Exist'},
+        headers=auth_headers(team_lead)
+    )
+    assert response.status_code == 404
+    assert response.get_json()['error'] == 'Application not found'
+
+
+def test_reactivate_application_not_found(client, admin_user_id):
+    """Attempt to reactivate a non‑existent application returns 404."""
+    admin = db.session.get(User, admin_user_id)
+    response = client.post(
+        '/api/applications/99999/reactivate',
+        headers=auth_headers(admin)
+    )
+    assert response.status_code == 404
+    assert response.get_json()['error'] == 'Application not found'
+def test_update_application_success(client, team_lead_user_id):
+    team_lead = db.session.get(User, team_lead_user_id)
+    # Create an application
+    response = client.post(
+        '/api/applications',
+        json={
+            'name': 'Update Success',
+            'criticality': 'medium',
+            'owner_id': team_lead.id,
+        },
+        headers=auth_headers(team_lead)
+    )
+    assert response.status_code == 201
+    app = response.get_json()
+
+    # Update criticality
+    update_response = client.put(
+        f'/api/applications/{app["id"]}',
+        json={'criticality': 'high'},
+        headers=auth_headers(team_lead)
+    )
+    assert update_response.status_code == 200
+    data = update_response.get_json()
+    assert data['criticality'] == 'high'
+    assert data['name'] == 'Update Success'  # unchanged
+
+    # Fetch and confirm persistence
+    get_response = client.get(f'/api/applications/{app["id"]}', headers=auth_headers(team_lead))
+    assert get_response.status_code == 200
+    assert get_response.get_json()['criticality'] == 'high'
+
+
+def test_update_application_permission_denied(client, support_user_id, admin_user_id):
+    admin = db.session.get(User, admin_user_id)
+    response = client.post(
+        '/api/applications',
+        json={
+            'name': 'Update Denied',
+            'criticality': 'medium',
+            'owner_id': admin.id,
+        },
+        headers=auth_headers(admin)
+    )
+    assert response.status_code == 201
+    app = response.get_json()
+
+    support = db.session.get(User, support_user_id)
+    update_response = client.put(
+        f'/api/applications/{app["id"]}',
+        json={'criticality': 'high'},
+        headers=auth_headers(support)
+    )
+    assert update_response.status_code == 403
+    # The decorator returns this generic message, not the service-specific one
+    assert 'Insufficient permissions' in update_response.get_json()['error']
+
+
+def test_reactivate_application_success(client, admin_user_id):
+    admin = db.session.get(User, admin_user_id)
+    # Create app
+    response = client.post(
+        '/api/applications',
+        json={
+            'name': 'Reactivate Success',
+            'criticality': 'low',
+            'owner_id': admin.id,
+        },
+        headers=auth_headers(admin)
+    )
+    assert response.status_code == 201
+    app = response.get_json()
+
+    # Soft delete
+    delete_response = client.delete(
+        f'/api/applications/{app["id"]}',
+        headers=auth_headers(admin)
+    )
+    assert delete_response.status_code == 200
+
+    # Confirm is_active False
+    get_response = client.get(f'/api/applications/{app["id"]}', headers=auth_headers(admin))
+    assert get_response.status_code == 200
+    assert get_response.get_json()['is_active'] is False
+
+    # Reactivate
+    reactivate_response = client.post(
+        f'/api/applications/{app["id"]}/reactivate',
+        headers=auth_headers(admin)
+    )
+    assert reactivate_response.status_code == 200
+    assert reactivate_response.get_json()['message'] == 'Application reactivated'
+
+    # Confirm is_active True
+    get_response = client.get(f'/api/applications/{app["id"]}', headers=auth_headers(admin))
+    assert get_response.status_code == 200
+    assert get_response.get_json()['is_active'] is True
+
+    # Confirm it appears in default list
+    list_response = client.get('/api/applications', headers=auth_headers(admin))
+    assert list_response.status_code == 200
+    ids = [app['id'] for app in list_response.get_json()]
+    assert app['id'] in ids
+
+
+def test_reactivate_application_permission_denied(client, support_user_id, admin_user_id):
+    admin = db.session.get(User, admin_user_id)
+    response = client.post(
+        '/api/applications',
+        json={
+            'name': 'Reactivate Denied',
+            'criticality': 'low',
+            'owner_id': admin.id,
+        },
+        headers=auth_headers(admin)
+    )
+    assert response.status_code == 201
+    app = response.get_json()
+
+    client.delete(f'/api/applications/{app["id"]}', headers=auth_headers(admin))
+
+    support = db.session.get(User, support_user_id)
+    reactivate_response = client.post(
+        f'/api/applications/{app["id"]}/reactivate',
+        headers=auth_headers(support)
+    )
+    assert reactivate_response.status_code == 403
+    assert 'Insufficient permissions' in reactivate_response.get_json()['error']
