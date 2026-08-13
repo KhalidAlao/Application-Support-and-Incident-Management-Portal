@@ -15,6 +15,10 @@ class ReportService:
     @staticmethod
     def get_application_report() -> List[Dict[str, Any]]:
         return IncidentRepository.get_stats_by_application()
+    
+    @staticmethod
+    def get_overdue_count() -> int:
+        return IncidentRepository.get_overdue_count()
 
     @staticmethod
     def get_overdue_incidents(limit: int = 50) -> List[Dict[str, Any]]:

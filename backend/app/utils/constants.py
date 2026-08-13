@@ -137,6 +137,15 @@ TRANSITION_ROLES = {
     (IncidentStatus.CLOSED.value, IncidentStatus.REOPENED.value): {Role.ADMIN.value},
 }
 
+OPEN_STATUSES = [
+    IncidentStatus.NEW.value,
+    IncidentStatus.TRIAGE.value,
+    IncidentStatus.ASSIGNED.value,
+    IncidentStatus.IN_PROGRESS.value,
+    IncidentStatus.ON_HOLD.value,
+    IncidentStatus.REOPENED.value,
+]
+
 def get_allowed_roles_for_transition(from_status: str, to_status: str) -> set:
     """Return the set of roles allowed to perform this transition. Empty set = no one."""
     return TRANSITION_ROLES.get((from_status, to_status), set())

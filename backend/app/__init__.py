@@ -16,7 +16,7 @@ def create_app(config_class=None):
     # Static folder for frontend assets (CSS, JS)
     app = Flask(
         __name__,
-        static_folder='../../frontend/static',  # relative to backend/app/
+        static_folder='../../frontend/static',
         static_url_path='/static'
     )
     app.config.from_object(config_class)
@@ -26,14 +26,13 @@ def create_app(config_class=None):
     CORS(app)
     swagger.init_app(app)
     migrate.init_app(app, db)
-    app.cli.add_command(seed_db)
 
     from backend.app import models  # noqa: F401
 
     # Register API blueprints
     from backend.app.routes import (
         health_bp, auth_bp, incidents_bp,
-        applications_bp, knowledge_bp, reports_bp
+        applications_bp, knowledge_bp, reports_bp, users_bp
     )
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(auth_bp)
@@ -41,18 +40,18 @@ def create_app(config_class=None):
     app.register_blueprint(applications_bp)
     app.register_blueprint(knowledge_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(users_bp)
 
     # Path to the frontend/ folder (repo root)
-    # app.root_path = backend/app/  ->  backend/app/../../frontend  -> frontend/
     frontend_dir = os.path.join(app.root_path, '..', '..', 'frontend')
-    # Debug: print path to verify during startup (can be removed later)
     print(f"Serving frontend from: {frontend_dir}")
 
-    # Explicit routes for frontend HTML pages
+    # Root route
     @app.route('/')
     def index():
         return redirect('/login.html')
 
+    # Frontend HTML routes
     @app.route('/login.html')
     def login_page():
         return send_from_directory(frontend_dir, 'login.html')
@@ -61,6 +60,11 @@ def create_app(config_class=None):
     def dashboard_page():
         return send_from_directory(frontend_dir, 'dashboard.html')
 
-   
+    @app.route('/incident-detail.html')
+    def incident_detail_page():
+        return send_from_directory(frontend_dir, 'incident-detail.html')
+
+    # Register CLI commands
+    app.cli.add_command(seed_db)
 
     return app

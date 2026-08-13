@@ -34,3 +34,9 @@ def by_application():
 def overdue():
     limit = request.args.get('limit', 50, type=int)
     return jsonify(ReportService.get_overdue_incidents(limit)), 200
+
+@reports_bp.route('/overdue-count', methods=['GET'])
+@jwt_required()
+@role_required(Role.SUPPORT_ENGINEER.value, Role.TEAM_LEAD.value, Role.ADMIN.value)
+def overdue_count():
+    return jsonify({'count': ReportService.get_overdue_count()}), 200

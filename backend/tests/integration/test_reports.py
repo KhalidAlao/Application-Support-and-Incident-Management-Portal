@@ -195,3 +195,95 @@ def test_reopened_clears_resolved_at(client, admin_user_id, support_user_id, rep
     # resolved_at should be set to now (utc_now)
     assert data['resolved_at'] is not None
     assert data['status'] == 'resolved'
+    
+def test_overdue_count(client, admin_user_id, reporter_user_id):
+    admin = db.session.get(User, admin_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+
+    app = Application(name='Overdue Test App', description='test', criticality='medium', owner_id=admin.id)
+    db.session.add(app)
+    db.session.commit()
+
+    priority = Priority.query.filter_by(code='P1').first()
+    if not priority:
+        priority = Priority(code='P1', label='Critical', impact_level='high', urgency_level='high',
+                            response_minutes=60, resolution_minutes=240)
+        db.session.add(priority)
+        db.session.commit()
+
+    now = datetime.now(timezone.utc)
+
+    # 1. Overdue open incident (should count)
+    inc1 = Incident(
+        title='Overdue Open',
+        description='open and past resolve_due',
+        application_id=app.id,
+        reporter_id=reporter.id,
+        status='assigned',
+        assigned_priority_id=priority.id,
+        resolve_due=now - timedelta(hours=2),
+        response_due=now - timedelta(hours=1),
+        created_at=now - timedelta(hours=3)
+    )
+    db.session.add(inc1)
+
+    # 2. Overdue closed incident (should NOT count)
+    inc2 = Incident(
+        title='Overdue Closed',
+        description='closed but past resolve_due',
+        application_id=app.id,
+        reporter_id=reporter.id,
+        status='closed',
+        assigned_priority_id=priority.id,
+        resolve_due=now - timedelta(hours=2),
+        response_due=now - timedelta(hours=1),
+        created_at=now - timedelta(hours=3)
+    )
+    db.session.add(inc2)
+
+    # 3. Overdue resolved incident (should NOT count)
+    inc3 = Incident(
+        title='Overdue Resolved',
+        description='resolved but past resolve_due',
+        application_id=app.id,
+        reporter_id=reporter.id,
+        status='resolved',
+        assigned_priority_id=priority.id,
+        resolve_due=now - timedelta(hours=2),
+        response_due=now - timedelta(hours=1),
+        created_at=now - timedelta(hours=3)
+    )
+    db.session.add(inc3)
+
+    # 4. Open incident not overdue (should NOT count)
+    inc4 = Incident(
+        title='Open Not Overdue',
+        description='open and future resolve_due',
+        application_id=app.id,
+        reporter_id=reporter.id,
+        status='in_progress',
+        assigned_priority_id=priority.id,
+        resolve_due=now + timedelta(hours=4),
+        response_due=now + timedelta(hours=2),
+        created_at=now - timedelta(hours=1)
+    )
+    db.session.add(inc4)
+
+    db.session.commit()
+
+    # As admin, should see count = 1 (only inc1)
+    response = client.get('/api/reports/overdue-count', headers=auth_headers(admin))
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['count'] == 1
+
+    # As reporter, should get 403
+    response = client.get('/api/reports/overdue-count', headers=auth_headers(reporter))
+    assert response.status_code == 403
+
+
+def test_overdue_count_permission_denied_for_reporter(client, reporter_user_id):
+    """Reporter cannot access overdue-count endpoint."""
+    reporter = db.session.get(User, reporter_user_id)
+    response = client.get('/api/reports/overdue-count', headers=auth_headers(reporter))
+    assert response.status_code == 403

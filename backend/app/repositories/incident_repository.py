@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from collections import defaultdict
 from backend.extensions import db
 from backend.app.models import Incident, Application, Priority
-from backend.app.utils.constants import IncidentStatus
+from backend.app.utils.constants import IncidentStatus, OPEN_STATUSES
 
 
 class IncidentRepository:
@@ -20,16 +20,8 @@ class IncidentRepository:
         for row in results:
             status_counts[row.status] = row.count
 
-        open_statuses = [
-            IncidentStatus.NEW.value,
-            IncidentStatus.TRIAGE.value,
-            IncidentStatus.ASSIGNED.value,
-            IncidentStatus.IN_PROGRESS.value,
-            IncidentStatus.ON_HOLD.value,
-            IncidentStatus.REOPENED.value,
-        ]
         total_open = db.session.query(db.func.count(Incident.id)).filter(
-            Incident.status.in_(open_statuses)
+            Incident.status.in_(OPEN_STATUSES)
         ).scalar() or 0
 
         total_closed = db.session.query(db.func.count(Incident.id)).filter(
@@ -70,7 +62,7 @@ class IncidentRepository:
             total_seconds = sum((res - cre).total_seconds() for cre, res in pairs)
             count = len(pairs)
             avg_minutes = (total_seconds / count) / 60 if count else None
-            priority = db.session.get(Priority, priority_id)  # fixed
+            priority = db.session.get(Priority, priority_id)
             if priority:
                 result.append({
                     'priority': priority.code,
@@ -99,7 +91,7 @@ class IncidentRepository:
             total_seconds = sum((res - cre).total_seconds() for cre, res in pairs)
             avg_seconds = total_seconds / count if count else 0
             avg_minutes = avg_seconds / 60 if count else None
-            app = db.session.get(Application, app_id)  # fixed
+            app = db.session.get(Application, app_id)
             if app:
                 result.append({
                     'application_id': app.id,
@@ -113,16 +105,18 @@ class IncidentRepository:
     def get_overdue_incidents(limit: int = 50) -> List[Incident]:
         """Incidents with resolve_due < now and still open."""
         now = datetime.now(timezone.utc)
-        open_statuses = [
-            IncidentStatus.NEW.value,
-            IncidentStatus.TRIAGE.value,
-            IncidentStatus.ASSIGNED.value,
-            IncidentStatus.IN_PROGRESS.value,
-            IncidentStatus.ON_HOLD.value,
-            IncidentStatus.REOPENED.value,
-        ]
         return Incident.query.filter(
             Incident.resolve_due.isnot(None),
             Incident.resolve_due < now,
-            Incident.status.in_(open_statuses)
+            Incident.status.in_(OPEN_STATUSES)
         ).order_by(Incident.resolve_due.asc()).limit(limit).all()
+
+    @staticmethod
+    def get_overdue_count() -> int:
+        """Return the count of overdue open incidents (resolve_due < now, not closed/resolved)."""
+        now = datetime.now(timezone.utc)
+        return db.session.query(db.func.count(Incident.id)).filter(
+            Incident.resolve_due.isnot(None),
+            Incident.resolve_due < now,
+            Incident.status.in_(OPEN_STATUSES)
+        ).scalar() or 0

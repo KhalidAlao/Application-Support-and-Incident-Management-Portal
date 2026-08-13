@@ -4,6 +4,7 @@ from .incidents import incidents_bp
 from .applications import applications_bp
 from .knowledge import knowledge_bp
 from .reports import reports_bp
+from .users import users_bp
 
 __all__ = [
     'health_bp',
@@ -12,4 +13,5 @@ __all__ = [
     'applications_bp',
     'knowledge_bp',
     'reports_bp',
+    'users_bp'
 ]
