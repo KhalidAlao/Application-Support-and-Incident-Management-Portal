@@ -37,6 +37,8 @@
                     <dl class="detail-list">
                         <dt>Description</dt>
                         <dd id="incident-description">—</dd>
+                        <dt>Reported Priority</dt>
+                        <dd id="incident-reported-priority-text">—</dd>
                         <dt>Priority</dt>
                         <dd id="incident-priority">—</dd>
                         <dt>Impact</dt>
@@ -118,6 +120,58 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Update Status</button>
                     <div id="status-error" class="error-message hidden"></div>
+                </form>
+            </div>
+
+            <!-- Triage Section (visible to support_engineer+) -->
+            <div id="triage-section" class="detail-section" style="display:none;">
+                <h3>Triage Incident</h3>
+                <form id="triage-form">
+                    <div class="form-group">
+                        <label for="triage-impact">Impact</label>
+                        <select id="triage-impact" required>
+                            <option value="">Select impact</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="triage-urgency">Urgency</label>
+                        <select id="triage-urgency" required>
+                            <option value="">Select urgency</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="triage-priority">Priority</label>
+                        <select id="triage-priority" required>
+                            <option value="">Select priority</option>
+                            <option value="P1">P1 – Critical</option>
+                            <option value="P2">P2 – High</option>
+                            <option value="P3">P3 – Medium</option>
+                            <option value="P4">P4 – Low</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Triage</button>
+                    <div id="triage-error" class="error-message hidden"></div>
+                </form>
+            </div>
+
+            <!-- Assign Section (visible to team_lead/admin) -->
+            <div id="assign-section" class="detail-section" style="display:none;">
+                <h3>Assign Incident</h3>
+                <form id="assign-form">
+                    <div class="form-group">
+                        <label for="assign-user">Assignee</label>
+                        <select id="assign-user" required>
+                            <option value="">Loading users...</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Assign</button>
+                    <div id="assign-error" class="error-message hidden"></div>
                 </form>
             </div>
 

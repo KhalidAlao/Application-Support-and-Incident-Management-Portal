@@ -12,6 +12,7 @@ const incidentStatusBadge = document.getElementById('incident-status-badge');
 const incidentIdEl = document.getElementById('incident-id');
 
 const incidentDescription = document.getElementById('incident-description');
+const incidentReportedPriorityText = document.getElementById('incident-reported-priority-text');
 const incidentPriority = document.getElementById('incident-priority');
 const incidentImpact = document.getElementById('incident-impact');
 const incidentUrgency = document.getElementById('incident-urgency');
@@ -41,6 +42,18 @@ const resolutionCodeGroup = document.getElementById('resolution-code-group');
 const resolutionCode = document.getElementById('resolution-code');
 const statusForm = document.getElementById('status-form');
 const statusError = document.getElementById('status-error');
+
+const triageSection = document.getElementById('triage-section');
+const triageImpact = document.getElementById('triage-impact');
+const triageUrgency = document.getElementById('triage-urgency');
+const triagePriority = document.getElementById('triage-priority');
+const triageForm = document.getElementById('triage-form');
+const triageError = document.getElementById('triage-error');
+
+const assignSection = document.getElementById('assign-section');
+const assignUser = document.getElementById('assign-user');
+const assignForm = document.getElementById('assign-form');
+const assignError = document.getElementById('assign-error');
 
 const auditTbody = document.getElementById('audit-tbody');
 
@@ -88,6 +101,7 @@ function renderIncident(data) {
     incidentIdEl.textContent = `#${data.id}`;
 
     incidentDescription.textContent = data.description || '—';
+    incidentReportedPriorityText.textContent = data.reported_priority_text || '—';
     incidentPriority.textContent = data.priority ? data.priority.code : '—';
     incidentImpact.textContent = data.impact || '—';
     incidentUrgency.textContent = data.urgency || '—';
@@ -166,6 +180,15 @@ function canUpdateStatus(data) {
     return ['team_lead', 'admin'].includes(currentUser.role);
 }
 
+function canTriage(data) {
+    if (currentUser.role === 'reporter') return false;
+    return ['support_engineer', 'team_lead', 'admin'].includes(currentUser.role);
+}
+
+function canAssign(data) {
+    return ['team_lead', 'admin'].includes(currentUser.role);
+}
+
 // --- Data refresh (re-fetch + re-render, no form setup) ---
 
 async function refreshIncidentData() {
@@ -188,7 +211,6 @@ function setupEditForm(data) {
     editTitle.value = data.title || '';
     editDescription.value = data.description || '';
 
-    // Remove any existing listener to prevent duplicates (safe guard)
     editForm.removeEventListener('submit', editForm._submitHandler);
     editForm._submitHandler = async (e) => {
         e.preventDefault();
@@ -225,19 +247,16 @@ function setupEditForm(data) {
 function setupStatusForm(data) {
     const submitBtn = statusForm.querySelector('button[type="submit"]');
 
-    // Populate status dropdown
     const options = getStatusOptions();
     statusSelect.innerHTML = options.map(s =>
         `<option value="${s}" ${s === data.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`
     ).join('');
 
-    // Show/hide resolution code based on selected status
     statusSelect.addEventListener('change', () => {
         resolutionCodeGroup.style.display = statusSelect.value === 'closed' ? 'block' : 'none';
     });
     resolutionCodeGroup.style.display = statusSelect.value === 'closed' ? 'block' : 'none';
 
-    // Remove any existing listener to prevent duplicates
     statusForm.removeEventListener('submit', statusForm._submitHandler);
     statusForm._submitHandler = async (e) => {
         e.preventDefault();
@@ -273,6 +292,103 @@ function setupStatusForm(data) {
         }
     };
     statusForm.addEventListener('submit', statusForm._submitHandler);
+}
+
+function setupTriageForm(data) {
+    const submitBtn = triageForm.querySelector('button[type="submit"]');
+
+    triageForm.removeEventListener('submit', triageForm._submitHandler);
+    triageForm._submitHandler = async (e) => {
+        e.preventDefault();
+        hideError(triageError);
+
+        const impact = triageImpact.value;
+        const urgency = triageUrgency.value;
+        const priorityCode = triagePriority.value;
+
+        if (!impact || !urgency || !priorityCode) {
+            showError(triageError, 'Please fill in all triage fields.');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Triaging…';
+
+        try {
+            const response = await apiJson(`/incidents/${incidentId}/triage`, {
+                method: 'POST',
+                body: JSON.stringify({ impact, urgency, priority_code: priorityCode }),
+            });
+            if (response) {
+                alert('Triage successful.');
+                await refreshIncidentData();
+                window.location.reload();
+            }
+        } catch (err) {
+            showError(triageError, err.message || 'Triage failed.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Triage';
+        }
+    };
+    triageForm.addEventListener('submit', triageForm._submitHandler);
+}
+
+async function loadAssignUsers() {
+    try {
+        const data = await apiJson('/users');
+        if (data && data.length) {
+            assignUser.innerHTML = '<option value="">Select user</option>';
+            data.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                opt.textContent = u.name;
+                assignUser.appendChild(opt);
+            });
+        } else {
+            assignUser.innerHTML = '<option value="">No users available</option>';
+        }
+    } catch (err) {
+        assignUser.innerHTML = '<option value="">Error loading users</option>';
+        console.error('Failed to load users:', err);
+    }
+}
+
+function setupAssignForm(data) {
+    const submitBtn = assignForm.querySelector('button[type="submit"]');
+
+    assignForm.removeEventListener('submit', assignForm._submitHandler);
+    assignForm._submitHandler = async (e) => {
+        e.preventDefault();
+        hideError(assignError);
+
+        const userId = assignUser.value;
+        if (!userId) {
+            showError(assignError, 'Please select an assignee.');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Assigning…';
+
+        try {
+            const response = await apiJson(`/incidents/${incidentId}/assign`, {
+                method: 'POST',
+                body: JSON.stringify({ assignee_id: parseInt(userId, 10) }),
+            });
+            if (response) {
+                alert('Assignment successful.');
+                await refreshIncidentData();
+                window.location.reload();
+            }
+        } catch (err) {
+            showError(assignError, err.message || 'Assignment failed.');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Assign';
+        }
+    };
+    assignForm.addEventListener('submit', assignForm._submitHandler);
 }
 
 // --- Initial load (runs once on page load) ---
@@ -312,6 +428,15 @@ async function loadIncidentDetail() {
         }
         if (canUpdateStatus(data)) {
             statusSection.style.display = 'block';
+        }
+        if (canTriage(data)) {
+            triageSection.style.display = 'block';
+            setupTriageForm(data);
+        }
+        if (canAssign(data)) {
+            assignSection.style.display = 'block';
+            await loadAssignUsers();
+            setupAssignForm(data);
         }
     } catch (err) {
         console.error('Failed to load incident:', err);
