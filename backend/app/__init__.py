@@ -63,6 +63,10 @@ def create_app(config_class=None):
     @app.route('/incident-detail.html')
     def incident_detail_page():
         return send_from_directory(frontend_dir, 'incident-detail.html')
+    @app.route('/create-incident.html')
+    
+    def create_incident_page():
+        return send_from_directory(frontend_dir, 'create-incident.html')
 
     # Register CLI commands
     app.cli.add_command(seed_db)
