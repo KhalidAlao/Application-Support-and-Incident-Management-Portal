@@ -259,6 +259,15 @@ function updateUrl() {
 // --- Init ---
 document.addEventListener('DOMContentLoaded', loadDashboard);
 
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await loadDashboard();
+    } catch (err) {
+        console.error('Dashboard load error:', err);
+       
+    }
+});
+
 window.addEventListener('popstate', () => {
     const params = new URLSearchParams(window.location.search);
     currentFilters.status = params.get('status') || '';

@@ -1,7 +1,8 @@
-from marshmallow import Schema, fields, validate, ValidationError
+from marshmallow import Schema, fields, validate
 from datetime import datetime
 from backend.app.utils.constants import IncidentStatus, ImpactLevel, UrgencyLevel, ResolutionCode
 from .knowledge import KnowledgeArticleSummarySchema
+from .audit_log import AuditLogSchema
 
 class IncidentCreateSchema(Schema):
     """Schema for creating a new incident (POST /api/incidents)."""
@@ -58,6 +59,7 @@ class IncidentResponseSchema(Schema):
     application = fields.Nested('ApplicationSchema', only=('id', 'name'), allow_none=True)
     priority = fields.Nested('PrioritySchema', only=('id', 'code', 'label'), allow_none=True)
     knowledge_articles = fields.List(fields.Nested(KnowledgeArticleSummarySchema))
+    audit_logs = fields.Nested(AuditLogSchema, many=True)
 
 
 class IncidentListResponseSchema(Schema):

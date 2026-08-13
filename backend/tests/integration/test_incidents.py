@@ -505,3 +505,90 @@ def test_hold_time_arithmetic(client, support_user_id, reporter_user_id, monkeyp
     if returned_resolve.tzinfo is None:
         returned_resolve = returned_resolve.replace(tzinfo=timezone.utc)
     assert returned_resolve == expected_resolve
+    
+def test_incident_response_includes_audit_logs(client, admin_user_id, support_user_id, reporter_user_id):
+    """
+    Verify that GET /incidents/:id returns an audit_logs key with a list of entries
+    in chronological order (oldest first) after multiple mutations.
+    """
+    admin = db.session.get(User, admin_user_id)
+    support = db.session.get(User, support_user_id)
+    reporter = db.session.get(User, reporter_user_id)
+
+    # Create an application
+    app = Application(name='Audit Test App', description='test', criticality='medium', owner_id=admin.id)
+    db.session.add(app)
+    db.session.commit()
+
+    # Create incident via API to trigger audit log creation
+    response = client.post(
+        '/api/incidents',
+        json={
+            'title': 'Audit Test Incident',
+            'description': 'Initial description',
+            'application_id': app.id
+        },
+        headers=auth_headers(reporter)
+    )
+    assert response.status_code == 201
+    incident_data = response.get_json()
+    incident_id = incident_data['id']
+
+    # 2. Admin assigns the incident to support
+    response = client.post(
+        f'/api/incidents/{incident_id}/assign',
+        json={'assignee_id': support.id},
+        headers=auth_headers(admin)
+    )
+    assert response.status_code == 200
+
+    # 3. Support changes status to in_progress
+    response = client.post(
+        f'/api/incidents/{incident_id}/status',
+        json={'status': 'in_progress', 'reason': 'Working on it'},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 200
+
+    # 4. Support edits title
+    response = client.put(
+        f'/api/incidents/{incident_id}',
+        json={'title': 'Audit Test Incident - Updated'},
+        headers=auth_headers(support)
+    )
+    assert response.status_code == 200
+
+    # Now fetch the incident as admin
+    response = client.get(f'/api/incidents/{incident_id}', headers=auth_headers(admin))
+    assert response.status_code == 200
+    data = response.get_json()
+
+    # Assert audit_logs exists and is a list
+    assert 'audit_logs' in data
+    logs = data['audit_logs']
+    assert isinstance(logs, list)
+    assert len(logs) >= 4  # at least created, assignee, status, title
+
+    # Check chronological order (oldest first)
+    timestamps = [log['timestamp'] for log in logs]
+    from datetime import datetime
+    dt_timestamps = [datetime.fromisoformat(ts.replace('Z', '+00:00')) for ts in timestamps]
+    assert dt_timestamps == sorted(dt_timestamps)  # strictly increasing
+
+    # Verify specific entries
+    created_entry = next((l for l in logs if l['field_changed'] == 'created'), None)
+    assert created_entry is not None
+    assert 'Incident created by' in created_entry['new_value']
+
+    assign_entry = next((l for l in logs if l['field_changed'] == 'assignee_id'), None)
+    assert assign_entry is not None
+    assert assign_entry['new_value'] == support.name
+
+    status_entry = next((l for l in logs if l['field_changed'] == 'status' and l['new_value'] == 'in_progress'), None)
+    assert status_entry is not None
+    assert status_entry['old_value'] == 'assigned'  # assignment auto-transitioned from new to assigned
+
+    title_entry = next((l for l in logs if l['field_changed'] == 'title'), None)
+    assert title_entry is not None
+    assert title_entry['old_value'] == 'Audit Test Incident'
+    assert title_entry['new_value'] == 'Audit Test Incident - Updated'

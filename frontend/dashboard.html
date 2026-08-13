@@ -3,17 +3,124 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard</title>
+    <title>Dashboard – Incident Support Portal</title>
     <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
-    <div style="max-width:800px;margin:2rem auto;padding:1rem;">
-        <h1>Dashboard</h1>
-        <p>Welcome! You are logged in.</p>
-        <p><strong>User:</strong> <span id="user-name"></span></p>
-        <p><strong>Role:</strong> <span id="user-role"></span></p>
-        <button id="logout-btn" class="btn btn-primary">Logout</button>
-    </div>
+
+    <header class="app-header">
+        <div class="container">
+            <div class="header-inner">
+                <h1 class="app-title">Incident Support</h1>
+                <div class="header-right">
+                    <span id="user-info" class="user-badge">Loading...</span>
+                    <button id="logout-btn" class="btn btn-secondary btn-sm">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container dashboard-container">
+        <!-- Summary Cards -->
+        <section id="summary-section" class="summary-grid">
+            <div class="summary-card">
+                <span class="summary-label">Total Open</span>
+                <span id="total-open" class="summary-value">—</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">Total Closed</span>
+                <span id="total-closed" class="summary-value">—</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">New</span>
+                <span id="status-new" class="summary-value">—</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">In Progress</span>
+                <span id="status-in-progress" class="summary-value">—</span>
+            </div>
+            <div class="summary-card">
+                <span class="summary-label">Overdue</span>
+                <span id="overdue-count" class="summary-value">—</span>
+            </div>
+        </section>
+
+        <!-- Filters -->
+        <section class="filter-section">
+            <form id="filter-form" class="filter-form">
+                <div class="filter-group">
+                    <label for="filter-status">Status</label>
+                    <select id="filter-status" name="status">
+                        <option value="">All</option>
+                        <option value="new">New</option>
+                        <option value="triage">Triage</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                        <option value="reopened">Reopened</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-application">Application</label>
+                    <select id="filter-application" name="application_id">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-assignee">Assignee</label>
+                    <select id="filter-assignee" name="assignee_id">
+                        <option value="">All</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-date-from">From</label>
+                    <input type="date" id="filter-date-from" name="created_after" />
+                </div>
+                <div class="filter-group">
+                    <label for="filter-date-to">To</label>
+                    <input type="date" id="filter-date-to" name="created_before" />
+                </div>
+                <button type="submit" class="btn btn-primary">Apply Filters</button>
+                <button type="reset" class="btn btn-secondary" id="clear-filters">Clear</button>
+            </form>
+        </section>
+
+        <!-- Incident Table -->
+        <section class="incident-list-section">
+            <div class="table-header">
+                <h2>Incidents</h2>
+                <span id="incident-count" class="table-count">0</span>
+            </div>
+            <div id="incident-table-container">
+                <table class="incident-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Application</th>
+                            <th>Assignee</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incident-tbody">
+                        <tr><td colspan="8" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Pagination -->
+            <div class="pagination-controls">
+                <button id="prev-page" class="btn btn-secondary" disabled>Previous</button>
+                <span id="page-info">Page 1 of 1</span>
+                <button id="next-page" class="btn btn-secondary" disabled>Next</button>
+            </div>
+        </section>
+    </main>
+
     <script type="module" src="/static/js/dashboard.js"></script>
 </body>
 </html>
