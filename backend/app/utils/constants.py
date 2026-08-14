@@ -1,10 +1,10 @@
 import enum
 
 class Role(enum.Enum):
-    REPORTER = "reporter"
-    SUPPORT_ENGINEER = "support_engineer"
-    TEAM_LEAD = "team_lead"
-    ADMIN = "admin"
+    REPORTER = "Reporter"
+    SUPPORT_ENGINEER = "Support Engineer"
+    TEAM_LEAD = "Team Lead"
+    ADMIN = "Admin"
 
     @classmethod
     def values(cls):
@@ -21,54 +21,54 @@ class PriorityCode(enum.Enum):
         return [item.value for item in cls]
 
 class ImpactLevel(enum.Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
 
     @classmethod
     def values(cls):
         return [item.value for item in cls]
 
 class UrgencyLevel(enum.Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
 
     @classmethod
     def values(cls):
         return [item.value for item in cls]
 
 class IncidentStatus(enum.Enum):
-    NEW = "new"
-    TRIAGE = "triage"
-    ASSIGNED = "assigned"
-    IN_PROGRESS = "in_progress"
-    ON_HOLD = "on_hold"
-    RESOLVED = "resolved"
-    REOPENED = "reopened"
-    CLOSED = "closed"
+    NEW = "New"
+    TRIAGE = "Triage"
+    ASSIGNED = "Assigned"
+    IN_PROGRESS = "In Progress"
+    ON_HOLD = "On hold"
+    RESOLVED = "Resolved"
+    REOPENED = "Reopened"
+    CLOSED = "Closed"
 
     @classmethod
     def values(cls):
         return [item.value for item in cls]
 
 class ResolutionCode(enum.Enum):
-    FIXED = "fixed"
-    WORKAROUND = "workaround"
-    NOT_A_BUG = "not_a_bug"
-    DUPLICATE = "duplicate"
-    CANT_REPRODUCE = "cant_reproduce"
-    THIRD_PARTY = "third_party"
+    FIXED = "Fixed"
+    WORKAROUND = "Workaround"
+    NOT_A_BUG = "Not A Bug"
+    DUPLICATE = "Duplicate"
+    CANT_REPRODUCE = "Can't Reproduce"
+    THIRD_PARTY = "Third Party"
 
     @classmethod
     def values(cls):
         return [item.value for item in cls]
 
 class CriticalityLevel(enum.Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+    CRITICAL = "Critical"
 
     @classmethod
     def values(cls):

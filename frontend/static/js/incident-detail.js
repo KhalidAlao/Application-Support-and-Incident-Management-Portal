@@ -93,6 +93,12 @@ function hideError(el) {
     el.classList.add('hidden');
 }
 
+function capitalizeFirst(str) {
+    if (!str || str === '—' || str === '-') return str;
+    // Handle special case: if it's a single character, just uppercase it
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 // --- Render functions (pure display, no listeners) ---
 
 function renderIncident(data) {
@@ -123,11 +129,11 @@ function renderAuditLog(logs) {
     }
     const rows = logs.map(log => `
         <tr>
-            <td>${log.field_changed}</td>
-            <td>${log.old_value || '—'}</td>
-            <td>${log.new_value || '—'}</td>
-            <td>${log.reason || '—'}</td>
-            <td>${log.actor_name || 'System'}</td>
+            <td>${capitalizeFirst(log.field_changed)}</td>
+            <td>${capitalizeFirst(log.old_value || '—')}</td>
+            <td>${capitalizeFirst(log.new_value || '—')}</td>
+            <td>${capitalizeFirst(log.reason || '—')}</td>
+            <td>${capitalizeFirst(log.actor_name || 'System')}</td>
             <td>${formatDate(log.timestamp)}</td>
         </tr>
     `).join('');

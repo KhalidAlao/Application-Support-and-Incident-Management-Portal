@@ -1,4 +1,7 @@
-/* Reset & base */
+/* ============================================
+   RESET & BASE
+   ============================================ */
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -11,10 +14,80 @@ body {
     color: #1e293b;
     line-height: 1.6;
     min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
+
+/* ============================================
+   TYPOGRAPHY & UTILITY
+   ============================================ */
+
+.text-muted {
+    color: #94a3b8;
+    font-size: 0.875rem;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.btn {
+    display: inline-block;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0.6rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-primary:active {
+    transform: scale(0.97);
+}
+
+.btn-secondary {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.btn-secondary:hover {
+    background: #cbd5e1;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-sm {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.75rem;
+}
+
+/* ============================================
+   LOGIN PAGE
+   ============================================ */
 
 .login-container {
     width: 100%;
@@ -42,72 +115,12 @@ body {
     font-size: 0.95rem;
 }
 
-.form-group {
-    margin-bottom: 1.25rem;
-}
-
-.form-group label {
-    display: block;
-    font-weight: 500;
-    font-size: 0.875rem;
-    color: #334155;
-    margin-bottom: 0.25rem;
-}
-
-.form-group input {
-    width: 100%;
-    padding: 0.6rem 0.75rem;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.2s;
-}
-
-.form-group input:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-}
-
-.btn {
-    display: inline-block;
-    font-weight: 600;
-    font-size: 1rem;
-    padding: 0.6rem 1.5rem;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-}
-
-.btn-primary {
-    background: #3b82f6;
-    color: #ffffff;
-}
-
-.btn-primary:hover {
-    background: #2563eb;
-}
-
-.btn-primary:active {
-    transform: scale(0.97);
-}
-
-.btn-block {
-    width: 100%;
-}
-
-.error-message {
-    color: #dc2626;
-    font-size: 0.9rem;
-    padding: 0.5rem 0.75rem;
-    background: #fef2f2;
-    border-radius: 6px;
-    margin-bottom: 1rem;
-}
-
-.hidden {
-    display: none !important;
+/* Login page centering – scoped to login only */
+.login-body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
 }
 
 .demo-note {
@@ -121,4 +134,384 @@ body {
 
 .demo-note strong {
     color: #334155;
+}
+
+/* ============================================
+   FORMS (shared)
+   ============================================ */
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #334155;
+    margin-bottom: 0.25rem;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+    background: #ffffff;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.error-message {
+    color: #dc2626;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    background: #fef2f2;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+}
+
+/* ============================================
+   DASHBOARD & SHARED LAYOUT
+   ============================================ */
+
+.app-header {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.75rem 0;
+}
+
+.container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.header-inner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
+.app-title {
+    text-align: center;
+    margin: 0;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-self: end;
+}
+
+.user-badge {
+    font-size: 0.875rem;
+    color: #334155;
+}
+
+/* Summary cards */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.summary-card {
+    background: #ffffff;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.summary-label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+
+.summary-value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+/* Filters */
+.filter-section {
+    background: #ffffff;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+}
+
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 1.5rem;
+    align-items: flex-end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.filter-group label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #475569;
+}
+
+.filter-group input,
+.filter-group select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background: #f8fafc;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* Incident table */
+.incident-list-section {
+    background: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.table-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.table-count {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.incident-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.incident-table th {
+    background: #f8fafc;
+    text-align: left;
+    padding: 0.6rem 1rem;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.incident-table td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.incident-table tr:hover {
+    background: #f8fafc;
+}
+
+.incident-table a {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.incident-table a:hover {
+    text-decoration: underline;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.1rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.badge-blue { background: #dbeafe; color: #1d4ed8; }
+.badge-purple { background: #ede9fe; color: #6d28d9; }
+.badge-orange { background: #fef3c7; color: #b45309; }
+.badge-yellow { background: #fef9c3; color: #a16207; }
+.badge-gray { background: #f1f5f9; color: #475569; }
+.badge-green { background: #dcfce7; color: #166534; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+
+/* Pagination */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+#page-info {
+    font-size: 0.875rem;
+    color: #475569;
+}
+
+/* ============================================
+   INCIDENT DETAIL PAGE
+   ============================================ */
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    background: #ffffff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+}
+
+.detail-header h2 {
+    font-size: 1.4rem;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.detail-section {
+    background: #ffffff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+}
+
+.detail-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.detail-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.6rem 1rem;
+    font-size: 0.9rem;
+}
+
+.detail-list dt {
+    font-weight: 600;
+    color: #64748b;
+}
+
+.detail-list dd {
+    color: #1e293b;
+}
+
+/* SLA progress bar */
+#sla-progress-container {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+}
+
+#sla-progress-bar {
+    height: 100%;
+    background: #3b82f6;
+    border-radius: 4px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+#sla-time-remaining {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* Detail forms */
+#edit-section textarea,
+#status-section select,
+#status-section input[type="text"],
+#triage-section select,
+#assign-section select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+#edit-section textarea:focus,
+#status-section select:focus,
+#status-section input[type="text"]:focus,
+#triage-section select:focus,
+#assign-section select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+#triage-section,
+#assign-section {
+    background: #ffffff;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
 }
