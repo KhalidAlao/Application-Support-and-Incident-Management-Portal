@@ -4,6 +4,13 @@ A full-stack incident management system built for a support/service-desk workflo
 
 Built as a structured learning project, developed phase-by-phase from domain modeling through deployment, with an emphasis on verifying every change against real Postgres data rather than assumptions.
 
+## Live Demo
+   
+   Deployed on Render: https://application-support-and-incident.onrender.com
+   
+   Demo credentials:
+   - admin@example.com / password
+
 ## Tech Stack
 
 **Backend:** Python 3.9, Flask (application factory pattern), SQLAlchemy, Alembic (via Flask-Migrate), Flask-JWT-Extended, Marshmallow, PostgreSQL (Docker for local dev)
