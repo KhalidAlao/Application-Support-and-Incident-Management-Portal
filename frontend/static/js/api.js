@@ -1,4 +1,4 @@
-// frontend/static/js/api.js
+
 //
 // TOKEN STORAGE TRADE-OFF:
 // This app stores the JWT in localStorage for simplicity.
@@ -9,7 +9,7 @@
 // (set by the server) which are not accessible to JavaScript at all.
 // See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies
 
-const API_BASE = 'http://localhost:5001/api';
+const API_BASE = '/api';
 
 // --- Token and user management ---
 
