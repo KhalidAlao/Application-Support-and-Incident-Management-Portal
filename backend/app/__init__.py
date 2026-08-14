@@ -1,15 +1,24 @@
+import os
 from flask import Flask, redirect, send_from_directory
 from flask_cors import CORS
-import os
 
 from backend.config import DevelopmentConfig, TestingConfig, ProductionConfig
 from backend.extensions import db, jwt, swagger, migrate
 from backend.seed import seed_db
 
-def create_app(config_class=None):
-    if config_class is None:
-        config_class = DevelopmentConfig
 
+def create_app(config_class=None):
+    # If no config class is explicitly provided, choose based on FLASK_ENV
+    if config_class is None:
+        env = os.getenv('FLASK_ENV', 'development')
+        config_map = {
+            'production': ProductionConfig,
+            'testing': TestingConfig,
+            'development': DevelopmentConfig,
+        }
+        config_class = config_map.get(env, DevelopmentConfig)
+
+    # Validate production config
     if config_class is ProductionConfig and not config_class.SQLALCHEMY_DATABASE_URI:
         raise ValueError("DATABASE_URL must be set when using ProductionConfig")
 
@@ -63,8 +72,8 @@ def create_app(config_class=None):
     @app.route('/incident-detail.html')
     def incident_detail_page():
         return send_from_directory(frontend_dir, 'incident-detail.html')
+
     @app.route('/create-incident.html')
-    
     def create_incident_page():
         return send_from_directory(frontend_dir, 'create-incident.html')
 
